@@ -14,6 +14,7 @@ const warningModal = document.getElementById('warning-modal');
 
 const connectionType = document.getElementById('connection-type');
 const ryvieIdEl = document.getElementById('ryvie-id');
+const errorMessageEl = document.getElementById('error-message');
 const openRyvieBtn = document.getElementById('open-ryvie-btn');
 const refreshBtn = document.getElementById('refresh-btn');
 const retryBtn = document.getElementById('retry-btn');
@@ -56,10 +57,13 @@ function showConnected() {
   setButtonLoading(true);
 }
 
-function showError() {
+function showError(message = 'Impossible de se connecter à Ryvie') {
   setVisibility(loadingSection, false);
   setVisibility(connectedSection, false);
   setVisibility(errorSection, true);
+  if (errorMessageEl) {
+    errorMessageEl.textContent = message;
+  }
 }
 
 function showWarningModal(currentId, newId) {
@@ -139,17 +143,36 @@ async function checkConnection() {
   } else {
     // Connexion locale échouée - utiliser le mode public
     if (savedConfig && savedConfig.domains && savedConfig.domains.app) {
-      currentConfig = {
-        mode: 'public',
-        ryvieId: savedConfig.ryvieId,
-        domains: savedConfig.domains,
-        url: `https://${savedConfig.domains.app}`
-      };
-      showConnected();
-      updateUI(currentConfig);
+      const publicUrl = `https://${savedConfig.domains.app}`;
+      
+      // Tester si l'URL publique est accessible
+      try {
+        const testResponse = await fetch(publicUrl, { 
+          method: 'GET',
+          signal: AbortSignal.timeout(5000) 
+        });
+        
+        // Vérifier que la réponse est OK (status 200-299)
+        if (!testResponse.ok) {
+          throw new Error(`HTTP ${testResponse.status}`);
+        }
+        
+        currentConfig = {
+          mode: 'public',
+          ryvieId: savedConfig.ryvieId,
+          domains: savedConfig.domains,
+          url: publicUrl
+        };
+        showConnected();
+        updateUI(currentConfig);
+      } catch (error) {
+        // URL publique inaccessible ou erreur réseau
+        showError('La connexion à votre Ryvie est impossible, merci de vérifier qu\'il est bien allumé');
+        return; // Sortir sans appeler maybeAutoOpen
+      }
     } else {
       // Aucune config sauvegardée et pas de connexion locale
-      showError();
+      showError('Veuillez vous connecter une première fois à votre Ryvie depuis chez vous (réseau local).');
       return; // Sortir sans appeler maybeAutoOpen
     }
   }

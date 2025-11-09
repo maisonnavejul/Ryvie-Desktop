@@ -137,7 +137,7 @@ ipcMain.handle('test-local-connection', async () => {
     }
     return { success: false };
   } catch (error) {
-    console.error('Erreur connexion locale:', error);
+    // Échec de connexion locale (normal si pas sur le réseau local)
     return { success: false };
   }
 });
