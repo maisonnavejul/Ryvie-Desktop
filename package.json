@@ -1,0 +1,30 @@
+{
+  "name": "ryvie-desktop",
+  "version": "1.0.0",
+  "description": "Application desktop pour Ryvie avec détection de connexion locale/publique",
+  "main": "src/main/main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win"
+  },
+  "keywords": ["ryvie", "electron", "desktop"],
+  "author": "Ryvie",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^27.0.0",
+    "electron-builder": "^24.6.4"
+  },
+  "build": {
+    "appId": "com.ryvie.desktop",
+    "productName": "Ryvie",
+    "win": {
+      "target": "nsis",
+      "icon": "ryvielogo0.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

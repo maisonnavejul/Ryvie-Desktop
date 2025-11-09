@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ryvie • Splash</title>
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
+      overflow: hidden;
+    }
+    .card {
+      width: 360px;
+      height: 220px;
+      background: rgba(255,255,255,0.9);
+      border-radius: 20px;
+      box-shadow: 0 30px 80px rgba(2,132,199,0.35);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      animation: fadeUp 400ms ease-out both;
+    }
+    .logo {
+      width: 72px;
+      height: 72px;
+      border-radius: 14px;
+      box-shadow: 0 12px 30px rgba(59,130,246,0.35);
+      margin-bottom: 14px;
+    }
+    .title {
+      font-weight: 700;
+      font-size: 20px;
+      letter-spacing: .3px;
+      background: linear-gradient(90deg, #38bdf8, #0ea5e9, #2563eb);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      margin-bottom: 10px;
+    }
+    .dots {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      justify-content: center;
+      height: 14px;
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #0ea5e9;
+      opacity: .25;
+      animation: pulse 1.2s infinite ease-in-out;
+    }
+    .dot:nth-child(2) { animation-delay: .2s; }
+    .dot:nth-child(3) { animation-delay: .4s; }
+    @keyframes fadeUp { from { transform: translateY(6px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    @keyframes pulse {
+      0%, 100% { transform: scale(.8); opacity: .25; }
+      50% { transform: scale(1.15); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <img class="logo" src="../../ryvielogo0.png" alt="Ryvie" />
+    <div class="title">Ryvie Desktop</div>
+    <div class="dots" aria-label="Chargement">
+      <div class="dot"></div>
+      <div class="dot"></div>
+      <div class="dot"></div>
+    </div>
+  </div>
+</body>
+</html>

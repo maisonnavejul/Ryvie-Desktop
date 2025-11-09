@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ryvie Desktop</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <img src="../../ryvielogo0.png" alt="Ryvie Logo" class="logo" />
+      <h1>Ryvie Desktop</h1>
+    </div>
+
+    <div id="loading" class="status-section section visible">
+      <div class="spinner"></div>
+      <p>Connexion en cours...</p>
+    </div>
+
+    <div id="connected" class="status-section section hidden">
+      <div class="status-badge success">✓ Connecté</div>
+      <div class="connection-info">
+        <p id="connection-type"></p>
+        <p id="ryvie-id"></p>
+      </div>
+      <button id="open-ryvie-btn" class="btn btn-primary">Ouvrir Ryvie</button>
+      <button id="refresh-btn" class="btn btn-secondary">Actualiser</button>
+    </div>
+
+    <div id="error" class="status-section section hidden">
+      <div class="status-badge error">✗ Erreur de connexion</div>
+      <p class="error-message">Impossible de se connecter à Ryvie</p>
+      <button id="retry-btn" class="btn btn-secondary">Réessayer</button>
+    </div>
+
+    <div id="warning-modal" class="modal hidden">
+      <div class="modal-content">
+        <h2>⚠️ Avertissement</h2>
+        <p>Un autre serveur Ryvie a été détecté en local.</p>
+        <p>Ryvie ID actuel : <strong id="current-id"></strong></p>
+        <p>Nouveau Ryvie ID : <strong id="new-id"></strong></p>
+        <p>Voulez-vous vous connecter à ce nouveau serveur Ryvie ?</p>
+        <div class="modal-buttons">
+          <button id="accept-btn" class="btn btn-primary">Accepter</button>
+          <button id="refuse-btn" class="btn btn-secondary">Refuser</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>
