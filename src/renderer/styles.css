@@ -195,3 +195,19 @@ h1 {
   opacity: 1;
 }
 .hidden { display: none; }
+
+/* Loading state for the primary action button */
+.btn.loading {
+  pointer-events: none;
+}
+.btn.btn-primary.loading {
+  background: #94a3b8; /* gris bleuté */
+  box-shadow: 0 0 0 0 rgba(148, 163, 184, 0.6);
+  animation: btnpulse 1.1s ease-in-out infinite;
+}
+.btn.btn-primary.loading::after { content: none; }
+@keyframes btnpulse {
+  0% { box-shadow: 0 0 0 0 rgba(148, 163, 184, 0.6); }
+  70% { box-shadow: 0 0 0 12px rgba(148, 163, 184, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(148, 163, 184, 0); }
+}

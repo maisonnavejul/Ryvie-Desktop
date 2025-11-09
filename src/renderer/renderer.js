@@ -4,6 +4,7 @@ let currentConfig = null;
 let pendingNewConfig = null;
 let hasAutoOpened = false; // évite les ouvertures multiples
 let autoOpenTimer = null;  // timer de délai pour l'ouverture auto
+let isInitialLoad = true;  // true uniquement au premier chargement de l'app
 
 // Éléments DOM
 const loadingSection = document.getElementById('loading');
@@ -23,6 +24,16 @@ const acceptBtn = document.getElementById('accept-btn');
 const refuseBtn = document.getElementById('refuse-btn');
 
 // Helpers UI
+function setButtonLoading(isLoading) {
+  if (!openRyvieBtn) return;
+  if (isLoading) {
+    openRyvieBtn.classList.add('loading');
+    openRyvieBtn.disabled = true;
+  } else {
+    openRyvieBtn.classList.remove('loading');
+    openRyvieBtn.disabled = false;
+  }
+}
 function setVisibility(el, visible) {
   if (!el) return;
   el.classList.remove('visible');
@@ -41,6 +52,8 @@ function showConnected() {
   setVisibility(loadingSection, false);
   setVisibility(connectedSection, true);
   setVisibility(errorSection, false);
+  // Par défaut, le bouton reste désactivé tant que l'ouverture auto n'est pas terminée
+  setButtonLoading(true);
 }
 
 function showError() {
@@ -60,14 +73,28 @@ function hideWarningModal() {
 }
 
 function maybeAutoOpen() {
-  if (!hasAutoOpened && currentConfig && currentConfig.url && !autoOpenTimer) {
+  // IMPORTANT: N'ouvrir QUE si c'est le chargement initial ET qu'on n'a pas encore ouvert
+  if (!isInitialLoad || hasAutoOpened) {
+    return;
+  }
+  
+  // Annuler tout timer existant pour éviter les doublons
+  if (autoOpenTimer) {
+    clearTimeout(autoOpenTimer);
+    autoOpenTimer = null;
+  }
+  
+  // Marquer immédiatement comme "en cours d'ouverture" pour éviter les appels multiples
+  hasAutoOpened = true;
+  setButtonLoading(true);
+  
+  if (currentConfig && currentConfig.url) {
     autoOpenTimer = setTimeout(() => {
-      if (!hasAutoOpened && currentConfig && currentConfig.url) {
-        window.electronAPI.openUrl(currentConfig.url);
-        hasAutoOpened = true;
-      }
+      window.electronAPI.openUrl(currentConfig.url);
       autoOpenTimer = null;
-    }, 1200); // ~1.2s de délai
+      // Une fois ouvert automatiquement, on réactive le bouton
+      setButtonLoading(false);
+    }, 2000); // 1.2s après l'affichage de la page "Connecté"
   }
 }
 
@@ -108,7 +135,6 @@ async function checkConnection() {
       await window.electronAPI.saveConfig(currentConfig);
       showConnected();
       updateUI(currentConfig);
-      maybeAutoOpen();
     }
   } else {
     // Connexion locale échouée - utiliser le mode public
@@ -121,12 +147,15 @@ async function checkConnection() {
       };
       showConnected();
       updateUI(currentConfig);
-      maybeAutoOpen();
     } else {
       // Aucune config sauvegardée et pas de connexion locale
       showError();
+      return; // Sortir sans appeler maybeAutoOpen
     }
   }
+  
+  // Appeler maybeAutoOpen UNE SEULE FOIS à la fin, après avoir configuré currentConfig
+  maybeAutoOpen();
 }
 
 function updateUI(config) {
@@ -141,17 +170,29 @@ function updateUI(config) {
 // Gestionnaires d'événements
 openRyvieBtn.addEventListener('click', () => {
   if (currentConfig && currentConfig.url) {
-    if (autoOpenTimer) { clearTimeout(autoOpenTimer); autoOpenTimer = null; }
+    // Annuler le timer d'auto-ouverture si l'utilisateur clique manuellement
+    if (autoOpenTimer) { 
+      clearTimeout(autoOpenTimer); 
+      autoOpenTimer = null; 
+    }
     hasAutoOpened = true;
+    setButtonLoading(true);
+    isInitialLoad = false;
     window.electronAPI.openUrl(currentConfig.url);
+    // Réactiver après un court délai pour éviter double clic
+    setTimeout(() => setButtonLoading(false), 1200);
   }
 });
 
 refreshBtn.addEventListener('click', () => {
+  // Désactiver l'auto-ouverture pour les refreshs manuels
+  isInitialLoad = false;
   checkConnection();
 });
 
 retryBtn.addEventListener('click', () => {
+  // Désactiver l'auto-ouverture pour les retry manuels
+  isInitialLoad = false;
   checkConnection();
 });
 
@@ -162,7 +203,7 @@ acceptBtn.addEventListener('click', async () => {
     updateUI(currentConfig);
     hideWarningModal();
     pendingNewConfig = null;
-    maybeAutoOpen();
+    // Ne pas appeler maybeAutoOpen ici car c'est une action manuelle
   }
 });
 

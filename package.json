@@ -1,6 +1,6 @@
 {
   "name": "ryvie-desktop",
-  "version": "1.0.0",
+  "version": "0.0.0",
   "description": "Application desktop pour Ryvie avec détection de connexion locale/publique",
   "main": "src/main/main.js",
   "scripts": {
