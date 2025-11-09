@@ -156,6 +156,11 @@ async function checkConnection() {
   
   // Appeler maybeAutoOpen UNE SEULE FOIS à la fin, après avoir configuré currentConfig
   maybeAutoOpen();
+
+  // Si l'utilisateur a déclenché manuellement (actualiser/réessayer), on réactive le bouton
+  if (!isInitialLoad) {
+    setButtonLoading(false);
+  }
 }
 
 function updateUI(config) {

@@ -21,7 +21,7 @@ function createSplash() {
     resizable: false,
     alwaysOnTop: true,
     show: false,
-    icon: path.join(__dirname, '../../ryvielogo0.png'),
+    icon: path.join(__dirname, '../../build/icons/win/icon.ico'),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true
@@ -42,7 +42,7 @@ function createMain() {
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js')
     },
-    icon: path.join(__dirname, '../../ryvielogo0.png')
+    icon: path.join(__dirname, '../../build/icons/win/icon.ico')
   });
 
   mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));

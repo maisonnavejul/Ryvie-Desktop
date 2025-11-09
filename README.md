@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="ryvielogo0.png" alt="Logo Ryvie" width="140" />
+</p>
+
 # Ryvie Desktop
 
 Application Electron pour lancer Ryvie avec détection automatique de la disponibilité locale/publique.
@@ -26,15 +30,15 @@ npm install
 npm start
 ```
 
-## Build
+## Build & scripts
 
-Générer l'exécutable Windows (.exe):
+| Commande | Description |
+|----------|-------------|
+| `npm start` | Lance l'application en mode développement. |
+| `npm run icons:win` | Génère l'icône Windows (`build/icons/win/icon.ico`) à partir du SVG avec fond blanc arrondi. |
+| `npm run build:win` | Génère l'installeur Windows (exécute d'abord `icons:win`). |
 
-```bash
-npm run build:win
-```
-
-L'exécutable sera généré dans `dist/`.
+L'installeur (.exe) est produit dans `dist/`.
 
 ## Utilisation
 
@@ -85,10 +89,34 @@ Raccourcis utiles: `F11` (plein écran), `Esc` (sortie du plein écran, si kiosq
 ## Configuration
 
 - Fichier de config: `%AppData%/Ryvie Desktop/ryvie-config.json`
-- Icône: `ryvielogo0.png`
+- Icône app/raccourci: `build/icons/win/icon.ico`
 - URLs par défaut:
   - API locale: `http://ryvie.local:3002/api/settings/ryvie-domains`
   - App locale: `http://ryvie.local:3000`
+
+## Icône style app (coins arrondis)
+
+- Source: `ryvielogo0.svg`
+- Script de génération: `npm run icons:win`
+  - Tailles générées: 16, 24, 32, 48, 64, 128, 256 px
+  - Fond blanc avec coins arrondis façon iOS
+- Fichier de sortie: `build/icons/win/icon.ico`
+
+> ⚠️ Réexécuter `npm run icons:win` avant chaque build si le SVG évolue.
+
+## Mises à jour automatiques (Electron Updater)
+
+1. **Hébergement des releases**: configurer la section `build.publish` (GitHub Releases, S3, serveur HTTPS, etc.).
+2. **Incrémenter `version`** dans `package.json` avant chaque publication.
+3. **Publier** avec:
+   ```bash
+   npm run build:win -- --publish always
+   ```
+   → Génère `Ryvie-Setup-x.x.x.exe`, `latest.yml`, `*.blockmap`.
+4. **Code**: utiliser `electron-updater` dans `src/main/main.js` pour `autoUpdater.checkForUpdatesAndNotify()` et relayer les événements (`update_available`, `update_ready`, `update_error`) vers le renderer. Ajouter un handler IPC `autoUpdater.quitAndInstall()` côté main.
+5. **UI**: dans `renderer.js`, afficher un message/bouton quand `update_ready` est reçu.
+
+> Conseil: tester sur une VM (release « draft ») avant déploiement public. Prévoir la signature du binaire pour éviter les alertes SmartScreen.
 
 ## Structure du projet
 
