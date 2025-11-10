@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { exec } = require('child_process');
 
 // Désactiver l'accélération GPU pour éviter les erreurs sur certains systèmes
 app.disableHardwareAcceleration();
@@ -113,41 +114,63 @@ ipcMain.handle('save-config', async (event, config) => {
   }
 });
 
-// Test connexion locale
+// Test connexion locale via curl PowerShell (seul moyen de résoudre ryvie.local sur Windows)
 ipcMain.handle('test-local-connection', async () => {
-  try {
-    const response = await fetch(LOCAL_API_URL, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
-      signal: AbortSignal.timeout(5000)
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      if (data && data.success && data.domains) {
-        return {
-          success: true,
-          data: {
-            id: data.id,
-            ryvieId: data.ryvieId,
-            domains: data.domains
-          }
-        };
+  console.log('[Ryvie][Main] 🔍 Test connexion locale:', LOCAL_API_URL);
+  
+  return new Promise((resolve) => {
+    // Utiliser curl PowerShell qui résout correctement ryvie.local via mDNS
+    const curlCommand = `curl -s -m 5 "${LOCAL_API_URL}"`;
+    
+    exec(curlCommand, { timeout: 6000, windowsHide: true }, (error, stdout, stderr) => {
+      if (error) {
+        console.warn('[Ryvie][Main] ❌ Erreur curl:', error.code || error.message);
+        resolve({ success: false });
+        return;
       }
-    }
-    return { success: false };
-  } catch (error) {
-    // Échec de connexion locale (normal si pas sur le réseau local)
-    return { success: false };
-  }
+
+      if (stderr) {
+        console.warn('[Ryvie][Main] ⚠️  Stderr curl:', stderr.substring(0, 100));
+      }
+
+      try {
+        const data = JSON.parse(stdout);
+        console.log('[Ryvie][Main] 📦 Données reçues:', {
+          success: data.success,
+          ryvieId: data.ryvieId,
+          hasDomains: !!data.domains
+        });
+        
+        if (data && data.success && data.domains) {
+          console.log('[Ryvie][Main] ✅ Connexion LOCALE réussie');
+          resolve({
+            success: true,
+            data: {
+              id: data.id,
+              ryvieId: data.ryvieId,
+              domains: data.domains
+            }
+          });
+        } else {
+          console.warn('[Ryvie][Main] ⚠️  Données invalides (pas de success/domains)');
+          resolve({ success: false });
+        }
+      } catch (parseError) {
+        console.error('[Ryvie][Main] ❌ Erreur parsing JSON:', parseError.message);
+        console.error('[Ryvie][Main] Stdout reçu:', stdout.substring(0, 200));
+        resolve({ success: false });
+      }
+    });
+  });
 });
 
 ipcMain.handle('open-url', async (event, url) => {
   try {
+    console.log('[Ryvie][Main] 🌐 Ouverture navigateur:', url);
     await shell.openExternal(url);
     return true;
   } catch (error) {
-    console.error("Erreur lors de l'ouverture de l'URL:", error);
+    console.error('[Ryvie][Main] ❌ Erreur ouverture URL:', error);
     return false;
   }
 });

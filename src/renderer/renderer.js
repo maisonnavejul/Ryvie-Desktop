@@ -104,20 +104,26 @@ function maybeAutoOpen() {
 
 // Logique de connexion
 async function checkConnection() {
+  console.log('[Ryvie][Renderer] === Vérification connexion démarrée ===');
   showLoading();
 
   // Charger la config sauvegardée
   const savedConfig = await window.electronAPI.loadConfig();
+  console.log('[Ryvie][Renderer] Config sauvegardée:', savedConfig ? `ryvieId=${savedConfig.ryvieId}` : 'aucune');
 
   // Tester la connexion locale
+  console.log('[Ryvie][Renderer] 🔍 Lancement test connexion locale...');
   const localResult = await window.electronAPI.testLocalConnection();
+  console.log('[Ryvie][Renderer] Résultat test local:', localResult.success ? '✅ SUCCÈS' : '❌ ÉCHEC');
 
   if (localResult.success) {
     // Connexion locale réussie
     const localData = localResult.data;
+    console.log('[Ryvie][Renderer] 🏠 Connexion LOCALE détectée - ryvieId:', localData.ryvieId);
 
     // Vérifier si le Ryvie ID a changé
     if (savedConfig && savedConfig.ryvieId && savedConfig.ryvieId !== localData.ryvieId) {
+      console.warn('[Ryvie][Renderer] ⚠️  RyvieID différent détecté:', savedConfig.ryvieId, '->', localData.ryvieId);
       // ID différent - afficher l'avertissement
       pendingNewConfig = {
         mode: 'local',
@@ -130,6 +136,7 @@ async function checkConnection() {
       updateUI(savedConfig);
     } else {
       // Même ID ou pas de config précédente - connexion directe
+      console.log('[Ryvie][Renderer] ✅ Passage en mode LOCAL');
       currentConfig = {
         mode: 'local',
         ryvieId: localData.ryvieId,
@@ -142,8 +149,10 @@ async function checkConnection() {
     }
   } else {
     // Connexion locale échouée - utiliser le mode public
+    console.log('[Ryvie][Renderer] 🌐 Test local KO -> tentative connexion PUBLIQUE');
     if (savedConfig && savedConfig.domains && savedConfig.domains.app) {
       const publicUrl = `https://${savedConfig.domains.app}`;
+      console.log('[Ryvie][Renderer] Test accessibilité URL publique:', publicUrl);
       
       // Tester si l'URL publique est accessible
       try {
@@ -157,6 +166,7 @@ async function checkConnection() {
           throw new Error(`HTTP ${testResponse.status}`);
         }
         
+        console.log('[Ryvie][Renderer] ✅ Passage en mode PUBLIC');
         currentConfig = {
           mode: 'public',
           ryvieId: savedConfig.ryvieId,
@@ -167,17 +177,20 @@ async function checkConnection() {
         updateUI(currentConfig);
       } catch (error) {
         // URL publique inaccessible ou erreur réseau
+        console.error('[Ryvie][Renderer] ❌ URL publique inaccessible:', error.message);
         showError('La connexion à votre Ryvie est impossible, merci de vérifier qu\'il est bien allumé');
         return; // Sortir sans appeler maybeAutoOpen
       }
     } else {
       // Aucune config sauvegardée et pas de connexion locale
+      console.warn('[Ryvie][Renderer] ⚠️  Aucune config + pas de réseau local');
       showError('Veuillez vous connecter une première fois à votre Ryvie depuis chez vous (réseau local).');
       return; // Sortir sans appeler maybeAutoOpen
     }
   }
   
   // Appeler maybeAutoOpen UNE SEULE FOIS à la fin, après avoir configuré currentConfig
+  console.log('[Ryvie][Renderer] 🚀 Connexion établie -> maybeAutoOpen');
   maybeAutoOpen();
 
   // Si l'utilisateur a déclenché manuellement (actualiser/réessayer), on réactive le bouton
@@ -187,6 +200,7 @@ async function checkConnection() {
 }
 
 function updateUI(config) {
+  console.log('[Ryvie][Renderer] 🖥️  Mise à jour UI:', config.mode.toUpperCase(), '- ryvieId:', config.ryvieId);
   if (config.mode === 'local') {
     connectionType.innerHTML = '<strong>Mode:</strong> Connexion Locale <span aria-hidden="true">🏠</span>';
   } else {
@@ -206,6 +220,7 @@ openRyvieBtn.addEventListener('click', () => {
     hasAutoOpened = true;
     setButtonLoading(true);
     isInitialLoad = false;
+    console.log('[Ryvie][Renderer] 👆 Clic utilisateur -> ouverture', currentConfig.url);
     window.electronAPI.openUrl(currentConfig.url);
     // Réactiver après un court délai pour éviter double clic
     setTimeout(() => setButtonLoading(false), 1200);
