@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Ryvie Desktop</title>
   <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
   <div class="container">
@@ -15,32 +18,65 @@
 
     <div id="loading" class="status-section section visible">
       <div class="spinner"></div>
-      <p>Connexion en cours...</p>
+      <p style="color: #64748b; font-size: 15px; margin-top: 10px;">Connexion en cours...</p>
     </div>
 
     <div id="connected" class="status-section section hidden">
-      <div class="status-badge success">✓ Connecté</div>
+      <div class="status-badge success">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" fill="currentColor"/>
+        </svg>
+        Connecté
+      </div>
       <div class="connection-info">
         <p id="connection-type"></p>
-        <p id="ryvie-id"></p>
+        <p id="ryvie-id" class="ryvie-id-row">
+          <strong>Ryvie ID:</strong>
+          <span id="ryvie-id-value" class="ryvie-id-masked">••••••••••••••••••••••••</span>
+          <button id="show-ryvie-id-btn" class="btn-link" type="button" title="Afficher/Masquer">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 5C7 5 2.73 8.11 1 12.5 2.73 16.89 7 20 12 20s9.27-3.11 11-7.5C21.27 8.11 17 5 12 5zm0 12.5c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" fill="currentColor"/>
+            </svg>
+          </button>
+        </p>
       </div>
-      <button id="open-ryvie-btn" class="btn btn-primary">Ouvrir Ryvie</button>
-      <button id="refresh-btn" class="btn btn-secondary">Actualiser</button>
+      <div class="actions-row">
+        <button id="open-ryvie-btn" class="btn btn-primary">
+          <span>Ouvrir Ryvie</span>
+        </button>
+        <button id="refresh-btn" class="btn btn-secondary">
+          <span>Actualiser</span>
+        </button>
+      </div>
     </div>
 
     <div id="error" class="status-section section hidden">
-      <div class="status-badge error">✗ Erreur de connexion</div>
+      <div class="status-badge error">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" fill="currentColor"/>
+        </svg>
+        Erreur de connexion
+      </div>
       <p id="error-message" class="error-message">Impossible de se connecter à Ryvie</p>
-      <button id="retry-btn" class="btn btn-secondary">Réessayer</button>
+      <button id="retry-btn" class="btn btn-secondary">
+        <span>Réessayer</span>
+      </button>
     </div>
 
     <div id="warning-modal" class="modal hidden">
       <div class="modal-content">
-        <h2>⚠️ Avertissement</h2>
-        <p>Un autre serveur Ryvie a été détecté en local.</p>
-        <p>Ryvie ID actuel : <strong id="current-id"></strong></p>
-        <p>Nouveau Ryvie ID : <strong id="new-id"></strong></p>
-        <p>Voulez-vous vous connecter à ce nouveau serveur Ryvie ?</p>
+        <div style="width: 60px; height: 60px; margin: 0 auto 20px; background: linear-gradient(135deg, #fbbf24, #f59e0b); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 25px rgba(251, 191, 36, 0.4);">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <h2>Nouveau Ryvie détecté</h2>
+        <p style="margin-bottom: 20px;">Un autre serveur Ryvie a été détecté sur votre réseau local.</p>
+        <div style="background: rgba(102, 126, 234, 0.05); padding: 16px; border-radius: 12px; margin: 20px 0;">
+          <p style="margin: 8px 0;"><span style="color: #64748b;">Actuel :</span> <strong id="current-id"></strong></p>
+          <p style="margin: 8px 0;"><span style="color: #64748b;">Nouveau :</span> <strong id="new-id"></strong></p>
+        </div>
+        <p style="color: #64748b; font-size: 13px; margin-bottom: 24px;">Voulez-vous vous connecter à ce nouveau serveur ?</p>
         <div class="modal-buttons">
           <button id="accept-btn" class="btn btn-primary">Accepter</button>
           <button id="refuse-btn" class="btn btn-secondary">Refuser</button>

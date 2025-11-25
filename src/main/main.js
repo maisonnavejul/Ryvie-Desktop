@@ -37,7 +37,7 @@ function createSplash() {
 function createMain() {
   mainWindow = new BrowserWindow({
     width: 600,
-    height: 500,
+    height: 400,
     resizable: false,
     show: false,
     webPreferences: {

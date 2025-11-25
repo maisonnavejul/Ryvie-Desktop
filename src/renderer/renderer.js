@@ -5,6 +5,7 @@ let pendingNewConfig = null;
 let hasAutoOpened = false; // évite les ouvertures multiples
 let autoOpenTimer = null;  // timer de délai pour l'ouverture auto
 let isInitialLoad = true;  // true uniquement au premier chargement de l'app
+let isRyvieIdVisible = false;
 
 // Éléments DOM
 const loadingSection = document.getElementById('loading');
@@ -14,6 +15,8 @@ const warningModal = document.getElementById('warning-modal');
 
 const connectionType = document.getElementById('connection-type');
 const ryvieIdEl = document.getElementById('ryvie-id');
+const ryvieIdValueEl = document.getElementById('ryvie-id-value');
+const showRyvieIdBtn = document.getElementById('show-ryvie-id-btn');
 const errorMessageEl = document.getElementById('error-message');
 const openRyvieBtn = document.getElementById('open-ryvie-btn');
 const refreshBtn = document.getElementById('refresh-btn');
@@ -148,21 +151,22 @@ async function checkConnection() {
         url: LOCAL_APP_URL
       };
       
-      // Toujours vérifier et configurer NetBird lors d'une connexion locale
-      if (localData.setupKey) {
-        console.log('[Ryvie][Renderer] Verification et setup NetBird');
-        const netbirdResult = await window.electronAPI.setupNetbird(localData.setupKey);
-        if (!netbirdResult.success) {
-          console.error('[Ryvie][Renderer] Erreur setup NetBird:', netbirdResult.error);
-          showError('Erreur lors de la configuration du tunnel NetBird');
-          return;
-        }
-        console.log('[Ryvie][Renderer] NetBird configure avec succes');
-      }
-      
       await window.electronAPI.saveConfig(currentConfig);
       showConnected();
       updateUI(currentConfig);
+      
+      // Setup NetBird en arrière-plan APRÈS avoir affiché l'UI et permis l'ouverture
+      if (localData.setupKey) {
+        console.log('[Ryvie][Renderer] Verification et setup NetBird en arriere-plan');
+        // Ne pas bloquer l'UI, lancer en async sans await
+        window.electronAPI.setupNetbird(localData.setupKey).then(netbirdResult => {
+          if (!netbirdResult.success) {
+            console.error('[Ryvie][Renderer] Erreur setup NetBird:', netbirdResult.error);
+          } else {
+            console.log('[Ryvie][Renderer] NetBird configure avec succes');
+          }
+        });
+      }
     }
   } else {
     // Connexion locale échouée - utiliser le mode public
@@ -239,7 +243,19 @@ function updateUI(config) {
   } else {
     connectionType.innerHTML = '<strong>Mode:</strong> Connexion Publique <span aria-hidden="true">🌐</span>';
   }
-  ryvieIdEl.innerHTML = `<strong>Ryvie ID:</strong> ${config.ryvieId || '—'}`;
+  if (ryvieIdValueEl) {
+    if (config.ryvieId) {
+      ryvieIdValueEl.textContent = isRyvieIdVisible
+        ? config.ryvieId
+        : '••••••••••••••••••••••••';
+    } else {
+      ryvieIdValueEl.textContent = '—';
+    }
+  }
+  if (showRyvieIdBtn) {
+    showRyvieIdBtn.title = isRyvieIdVisible ? 'Masquer' : 'Afficher';
+    showRyvieIdBtn.style.display = config.ryvieId ? 'inline-flex' : 'none';
+  }
 }
 
 // Gestionnaires d'événements
@@ -271,6 +287,19 @@ retryBtn.addEventListener('click', () => {
   isInitialLoad = false;
   checkConnection();
 });
+
+if (showRyvieIdBtn && ryvieIdValueEl) {
+  showRyvieIdBtn.addEventListener('click', () => {
+    if (!currentConfig || !currentConfig.ryvieId) {
+      return;
+    }
+    isRyvieIdVisible = !isRyvieIdVisible;
+    ryvieIdValueEl.textContent = isRyvieIdVisible
+      ? currentConfig.ryvieId
+      : '••••••••••••••••••••••••';
+    showRyvieIdBtn.title = isRyvieIdVisible ? 'Masquer' : 'Afficher';
+  });
+}
 
 acceptBtn.addEventListener('click', async () => {
   if (pendingNewConfig) {
