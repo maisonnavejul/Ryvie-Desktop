@@ -129,6 +129,8 @@ async function checkConnection() {
         mode: 'local',
         ryvieId: localData.ryvieId,
         domains: localData.domains,
+        tunnelHost: localData.tunnelHost,
+        setupKey: localData.setupKey,
         url: LOCAL_APP_URL
       };
       showWarningModal(savedConfig.ryvieId, localData.ryvieId);
@@ -141,8 +143,23 @@ async function checkConnection() {
         mode: 'local',
         ryvieId: localData.ryvieId,
         domains: localData.domains,
+        tunnelHost: localData.tunnelHost,
+        setupKey: localData.setupKey,
         url: LOCAL_APP_URL
       };
+      
+      // Toujours vérifier et configurer NetBird lors d'une connexion locale
+      if (localData.setupKey) {
+        console.log('[Ryvie][Renderer] Verification et setup NetBird');
+        const netbirdResult = await window.electronAPI.setupNetbird(localData.setupKey);
+        if (!netbirdResult.success) {
+          console.error('[Ryvie][Renderer] Erreur setup NetBird:', netbirdResult.error);
+          showError('Erreur lors de la configuration du tunnel NetBird');
+          return;
+        }
+        console.log('[Ryvie][Renderer] NetBird configure avec succes');
+      }
+      
       await window.electronAPI.saveConfig(currentConfig);
       showConnected();
       updateUI(currentConfig);
@@ -150,8 +167,23 @@ async function checkConnection() {
   } else {
     // Connexion locale échouée - utiliser le mode public
     console.log('[Ryvie][Renderer] 🌐 Test local KO -> tentative connexion PUBLIQUE');
-    if (savedConfig && savedConfig.domains && savedConfig.domains.app) {
-      const publicUrl = `https://${savedConfig.domains.app}`;
+    if (savedConfig && savedConfig.domains) {
+      // Déterminer l'URL publique selon la présence de domains.app
+      let publicUrl;
+      if (savedConfig.domains.app) {
+        // Cas 1: domains.app existe -> utiliser HTTPS
+        publicUrl = `https://${savedConfig.domains.app}`;
+        console.log('[Ryvie][Renderer] Mode PUBLIC avec domaine app:', publicUrl);
+      } else if (savedConfig.tunnelHost) {
+        // Cas 2: pas de domains.app -> utiliser tunnelHost:3000
+        publicUrl = `http://${savedConfig.tunnelHost}:3000`;
+        console.log('[Ryvie][Renderer] Mode PUBLIC avec tunnelHost:', publicUrl);
+      } else {
+        console.warn('[Ryvie][Renderer] ⚠️  Pas de domains.app ni tunnelHost');
+        showError('Configuration incomplète. Veuillez vous reconnecter en local.');
+        return;
+      }
+      
       console.log('[Ryvie][Renderer] Test accessibilité URL publique:', publicUrl);
       
       // Tester si l'URL publique est accessible
@@ -171,6 +203,7 @@ async function checkConnection() {
           mode: 'public',
           ryvieId: savedConfig.ryvieId,
           domains: savedConfig.domains,
+          tunnelHost: savedConfig.tunnelHost,
           url: publicUrl
         };
         showConnected();
@@ -241,6 +274,19 @@ retryBtn.addEventListener('click', () => {
 
 acceptBtn.addEventListener('click', async () => {
   if (pendingNewConfig) {
+    // Changement de Ryvie -> Setup NetBird avec la nouvelle setupKey
+    if (pendingNewConfig.setupKey) {
+      console.log('[Ryvie][Renderer] Changement de Ryvie -> Setup NetBird');
+      const netbirdResult = await window.electronAPI.setupNetbird(pendingNewConfig.setupKey);
+      if (!netbirdResult.success) {
+        console.error('[Ryvie][Renderer] Erreur setup NetBird:', netbirdResult.error);
+        showError('Erreur lors de la configuration du tunnel NetBird');
+        hideWarningModal();
+        return;
+      }
+      console.log('[Ryvie][Renderer] NetBird reconfigure avec succes');
+    }
+    
     currentConfig = pendingNewConfig;
     await window.electronAPI.saveConfig(currentConfig);
     updateUI(currentConfig);
@@ -257,7 +303,11 @@ refuseBtn.addEventListener('click', () => {
   if (currentConfig) {
     // Basculer en mode public si le local est refusé
     currentConfig.mode = 'public';
-    currentConfig.url = `https://${currentConfig.domains.app}`;
+    if (currentConfig.domains.app) {
+      currentConfig.url = `https://${currentConfig.domains.app}`;
+    } else if (currentConfig.tunnelHost) {
+      currentConfig.url = `http://${currentConfig.tunnelHost}:3000`;
+    }
     updateUI(currentConfig);
   }
 });
