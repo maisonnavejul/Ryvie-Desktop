@@ -52,12 +52,14 @@ function createMain() {
   mainWindow.setMenuBarVisibility(false);
 
   mainWindow.once('ready-to-show', () => {
-    // petite temporisation pour laisser l'animation du splash
-    setTimeout(() => {
-      if (splashWindow && !splashWindow.isDestroyed()) splashWindow.close();
-      splashWindow = null;
-      if (mainWindow) mainWindow.show();
-    }, 800);
+    // Fermer le splash et afficher la fenêtre principale immédiatement
+    if (splashWindow && !splashWindow.isDestroyed()) {
+      splashWindow.close();
+    }
+    splashWindow = null;
+    if (mainWindow) {
+      mainWindow.show();
+    }
   });
 }
 
@@ -76,12 +78,18 @@ if (!gotTheLock) {
 
   app.whenReady().then(() => {
     createSplash();
-    createMain();
+    
+    // Créer la fenêtre principale après un délai (pour laisser le splash s'afficher)
+    setTimeout(() => {
+      createMain();
+    }, 1500);
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) {
         createSplash();
-        createMain();
+        setTimeout(() => {
+          createMain();
+        }, 1500);
       }
     });
   });
