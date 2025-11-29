@@ -27,6 +27,14 @@ const newIdSpan = document.getElementById('new-id');
 const acceptBtn = document.getElementById('accept-btn');
 const refuseBtn = document.getElementById('refuse-btn');
 
+const manualSetupBtn = document.getElementById('manual-setup-btn');
+const manualSetupModal = document.getElementById('manual-setup-modal');
+const manualSetupKeyInput = document.getElementById('manual-setup-key-input');
+const manualTunnelIpInput = document.getElementById('manual-tunnel-ip-input');
+const manualSetupError = document.getElementById('manual-setup-error');
+const manualSetupConfirmBtn = document.getElementById('manual-setup-confirm-btn');
+const manualSetupCancelBtn = document.getElementById('manual-setup-cancel-btn');
+
 // Helpers UI
 function setButtonLoading(isLoading) {
   if (!openRyvieBtn) return;
@@ -77,6 +85,21 @@ function showWarningModal(currentId, newId) {
 
 function hideWarningModal() {
   warningModal.classList.add('hidden');
+}
+
+function showManualSetupModal() {
+  manualSetupModal.classList.remove('hidden');
+  manualSetupKeyInput.value = '';
+  manualTunnelIpInput.value = '';
+  manualSetupError.style.display = 'none';
+  manualTunnelIpInput.focus();
+}
+
+function hideManualSetupModal() {
+  manualSetupModal.classList.add('hidden');
+  manualSetupKeyInput.value = '';
+  manualTunnelIpInput.value = '';
+  manualSetupError.style.display = 'none';
 }
 
 function maybeAutoOpen() {
@@ -240,6 +263,8 @@ function updateUI(config) {
   console.log('[Ryvie][Renderer] 🖥️  Mise à jour UI:', config.mode.toUpperCase(), '- ryvieId:', config.ryvieId);
   if (config.mode === 'local') {
     connectionType.innerHTML = '<strong>Mode:</strong> Connexion Locale <span aria-hidden="true">🏠</span>';
+  } else if (config.mode === 'manual') {
+    connectionType.innerHTML = '<strong>Mode:</strong> Configuration Manuelle <span aria-hidden="true">🔧</span>';
   } else {
     connectionType.innerHTML = '<strong>Mode:</strong> Connexion Publique <span aria-hidden="true">🌐</span>';
   }
@@ -338,6 +363,121 @@ refuseBtn.addEventListener('click', () => {
       currentConfig.url = `http://${currentConfig.tunnelHost}:3000`;
     }
     updateUI(currentConfig);
+  }
+});
+
+manualSetupBtn.addEventListener('click', () => {
+  showManualSetupModal();
+});
+
+manualSetupCancelBtn.addEventListener('click', () => {
+  hideManualSetupModal();
+});
+
+manualSetupConfirmBtn.addEventListener('click', async () => {
+  const setupKey = manualSetupKeyInput.value.trim();
+  const tunnelIp = manualTunnelIpInput.value.trim();
+  
+  // Validation des champs
+  if (!tunnelIp) {
+    manualSetupError.textContent = 'Veuillez entrer l\'IP du tunnel';
+    manualSetupError.style.display = 'block';
+    manualTunnelIpInput.focus();
+    return;
+  }
+  
+  if (!setupKey) {
+    manualSetupError.textContent = 'Veuillez entrer une setup key';
+    manualSetupError.style.display = 'block';
+    manualSetupKeyInput.focus();
+    return;
+  }
+  
+  // Validation basique de l'IP
+  const ipRegex = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/;
+  if (!ipRegex.test(tunnelIp)) {
+    manualSetupError.textContent = 'Format d\'IP invalide (ex: 100.64.0.1)';
+    manualSetupError.style.display = 'block';
+    manualTunnelIpInput.focus();
+    return;
+  }
+  
+  // Désactiver le bouton pendant le traitement et ajouter l'animation
+  manualSetupConfirmBtn.disabled = true;
+  manualSetupConfirmBtn.classList.add('loading');
+  manualSetupConfirmBtn.innerHTML = '<span class="btn-spinner"></span><span>Configuration...</span>';
+  manualSetupError.style.display = 'none';
+  
+  try {
+    console.log('[Ryvie][Renderer] Configuration manuelle NetBird avec setup key et IP:', tunnelIp);
+    
+    // Appeler le setup NetBird
+    const netbirdResult = await window.electronAPI.setupNetbird(setupKey);
+    
+    if (!netbirdResult.success) {
+      console.error('[Ryvie][Renderer] Erreur setup NetBird:', netbirdResult.error);
+      manualSetupError.textContent = 'Erreur lors de la configuration: ' + (netbirdResult.error || 'Erreur inconnue');
+      manualSetupError.style.display = 'block';
+      manualSetupConfirmBtn.disabled = false;
+      manualSetupConfirmBtn.classList.remove('loading');
+      manualSetupConfirmBtn.innerHTML = '<span>Confirmer</span>';
+      return;
+    }
+    
+    console.log('[Ryvie][Renderer] NetBird configuré avec succès');
+    
+    // Créer une configuration manuelle avec l'IP du tunnel
+    const manualConfig = {
+      mode: 'manual',
+      ryvieId: 'manual-' + Date.now(),
+      tunnelHost: tunnelIp,
+      setupKey: setupKey,
+      url: `http://${tunnelIp}:3000`
+    };
+    
+    // Sauvegarder la configuration
+    await window.electronAPI.saveConfig(manualConfig);
+    currentConfig = manualConfig;
+    
+    // Fermer la modale
+    hideManualSetupModal();
+    
+    // Afficher l'état connecté
+    showConnected();
+    updateUI(currentConfig);
+    
+    // Désactiver l'auto-ouverture pour la configuration manuelle
+    isInitialLoad = false;
+    setButtonLoading(false);
+    
+  } catch (error) {
+    console.error('[Ryvie][Renderer] Erreur inattendue:', error);
+    manualSetupError.textContent = 'Erreur inattendue: ' + error.message;
+    manualSetupError.style.display = 'block';
+  } finally {
+    manualSetupConfirmBtn.disabled = false;
+    manualSetupConfirmBtn.classList.remove('loading');
+    manualSetupConfirmBtn.innerHTML = '<span>Confirmer</span>';
+  }
+});
+
+// Permettre la validation avec la touche Entrée
+manualSetupKeyInput.addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') {
+    manualSetupConfirmBtn.click();
+  }
+});
+
+manualTunnelIpInput.addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') {
+    manualSetupKeyInput.focus();
+  }
+});
+
+// Fermer la modale si on clique en dehors
+manualSetupModal.addEventListener('click', (e) => {
+  if (e.target === manualSetupModal) {
+    hideManualSetupModal();
   }
 });
 

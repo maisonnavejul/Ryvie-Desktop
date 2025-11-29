@@ -9,8 +9,23 @@ app.disableHardwareAcceleration();
 const CONFIG_FILE = path.join(app.getPath('userData'), 'ryvie-config.json');
 const LOCAL_API_URL = 'http://ryvie.local:3002/api/settings/ryvie-domains';
 const LOCAL_APP_URL = 'http://ryvie.local:3000';
-const NETBIRD_PATH = 'C:\\Program Files\\Netbird\\netbird.exe';
-const NETBIRD_INSTALLER_URL = 'https://pkgs.netbird.io/windows/x64';
+
+// Flags de plateforme
+const IS_WINDOWS = process.platform === 'win32';
+const IS_MAC = process.platform === 'darwin';
+const IS_LINUX = process.platform === 'linux';
+
+// Chemin binaire NetBird selon la plateforme (Windows réellement utilisé, autres à compléter si besoin)
+const NETBIRD_PATH = IS_WINDOWS
+  ? 'C:\\Program Files\\Netbird\\netbird.exe'
+  : IS_MAC
+    ? '/usr/local/bin/netbird'
+    : '/usr/bin/netbird';
+
+// URL installeur NetBird selon la plateforme
+const NETBIRD_INSTALLER_URL = IS_WINDOWS
+  ? 'https://pkgs.netbird.io/windows/msi/x64'
+  : 'https://pkgs.netbird.io/install.sh';
 
 let mainWindow;
 let splashWindow;
@@ -107,51 +122,106 @@ app.on('window-all-closed', () => {
 
 // Verifie si NetBird est installe
 function isNetbirdInstalled() {
+  if (!IS_WINDOWS && !IS_MAC && !IS_LINUX) {
+    console.warn('[Ryvie][Main] Plateforme non supportee pour NetBird:', process.platform);
+    return false;
+  }
+
   return fs.existsSync(NETBIRD_PATH);
 }
 
-// Installe NetBird
+// Installe NetBird selon le système d'exploitation
 function installNetbird() {
   return new Promise((resolve) => {
-    console.log('[Ryvie][Main] Installation de NetBird...');
-    const tempPath = path.join(process.env.TEMP, 'netbird-installer.exe');
-    
-    // Telecharger l'installeur
-    const downloadCmd = `curl -L "${NETBIRD_INSTALLER_URL}" -o "${tempPath}"`;
-    
-    exec(downloadCmd, { timeout: 60000, windowsHide: true }, (downloadError) => {
-      if (downloadError) {
-        console.error('[Ryvie][Main] Erreur telechargement NetBird:', downloadError.message);
-        resolve({ success: false, error: 'Erreur telechargement' });
-        return;
-      }
+    if (!IS_WINDOWS && !IS_MAC && !IS_LINUX) {
+      console.warn('[Ryvie][Main] Plateforme non supportee pour installation NetBird:', process.platform);
+      resolve({ success: false, error: 'Plateforme non supportee pour installation NetBird.' });
+      return;
+    }
+
+    if (IS_WINDOWS) {
+      // Installation Windows via MSI
+      console.log('[Ryvie][Main] Installation de NetBird (Windows)...');
+      const tempPath = path.join(process.env.TEMP, 'netbird-installer.msi');
       
-      console.log('[Ryvie][Main] Telechargement termine, lancement installation...');
+      // Telecharger l'installeur MSI
+      const downloadCmd = `curl -L "${NETBIRD_INSTALLER_URL}" -o "${tempPath}"`;
       
-      // Executer l'installeur en mode silencieux
-      const installCmd = `"${tempPath}" /S`;
+      exec(downloadCmd, { timeout: 60000, windowsHide: true }, (downloadError) => {
+        if (downloadError) {
+          console.error('[Ryvie][Main] Erreur telechargement NetBird:', downloadError.message);
+          resolve({ success: false, error: 'Erreur telechargement' });
+          return;
+        }
+        
+        console.log('[Ryvie][Main] Telechargement MSI termine, lancement installation classique...');
+        
+        // Installer via msiexec avec interface standard (non silencieuse)
+        // INSTALLDESKTOPSHORTCUT=0 désactive le raccourci bureau
+        const installCmd = `msiexec /i "${tempPath}" /norestart INSTALLDESKTOPSHORTCUT=0`;
+        
+        exec(installCmd, { timeout: 120000, windowsHide: false }, (installError) => {
+          if (installError) {
+            console.error('[Ryvie][Main] Erreur installation NetBird:', installError.message);
+            resolve({ success: false, error: 'Erreur installation' });
+            return;
+          }
+          
+          console.log('[Ryvie][Main] NetBird installe avec succes');
+          
+          // Supprimer le raccourci bureau s'il existe
+          const desktopPath = path.join(process.env.USERPROFILE, 'Desktop', 'NetBird.lnk');
+          if (fs.existsSync(desktopPath)) {
+            try {
+              fs.unlinkSync(desktopPath);
+              console.log('[Ryvie][Main] Raccourci bureau NetBird supprime');
+            } catch (err) {
+              console.warn('[Ryvie][Main] Impossible de supprimer le raccourci bureau:', err.message);
+            }
+          }
+          
+          // Attendre un peu que l'installation se finalise
+          setTimeout(() => {
+            resolve({ success: true });
+          }, 3000);
+        });
+      });
+    } else {
+      // Installation Linux/macOS via script officiel
+      console.log(`[Ryvie][Main] Installation de NetBird (${IS_MAC ? 'macOS' : 'Linux'})...`);
       
-      exec(installCmd, { timeout: 120000, windowsHide: false }, (installError) => {
+      // Utiliser le script d'installation officiel
+      const installCmd = `curl -fsSL ${NETBIRD_INSTALLER_URL} | sh`;
+      
+      exec(installCmd, { timeout: 120000 }, (installError, stdout, stderr) => {
         if (installError) {
           console.error('[Ryvie][Main] Erreur installation NetBird:', installError.message);
+          if (stderr) console.error('[Ryvie][Main] Stderr:', stderr);
           resolve({ success: false, error: 'Erreur installation' });
           return;
         }
         
         console.log('[Ryvie][Main] NetBird installe avec succes');
+        if (stdout) console.log('[Ryvie][Main] Stdout:', stdout.substring(0, 200));
         
         // Attendre un peu que l'installation se finalise
         setTimeout(() => {
           resolve({ success: true });
         }, 3000);
       });
-    });
+    }
   });
 }
 
 // Deconnecte NetBird
 function netbirdLogout() {
   return new Promise((resolve) => {
+    if (!IS_WINDOWS && !IS_MAC && !IS_LINUX) {
+      console.warn('[Ryvie][Main] Plateforme non supportee pour NetBird logout:', process.platform);
+      resolve({ success: true });
+      return;
+    }
+
     if (!isNetbirdInstalled()) {
       console.log('[Ryvie][Main] NetBird non installe, skip logout');
       resolve({ success: true });
@@ -176,6 +246,12 @@ function netbirdLogout() {
 // Connecte NetBird avec la setup key
 function netbirdConnect(setupKey) {
   return new Promise((resolve) => {
+    if (!IS_WINDOWS && !IS_MAC && !IS_LINUX) {
+      console.warn('[Ryvie][Main] Plateforme non supportee pour NetBird connect:', process.platform);
+      resolve({ success: false, error: 'Plateforme non supportee pour NetBird.' });
+      return;
+    }
+
     if (!isNetbirdInstalled()) {
       console.error('[Ryvie][Main] NetBird non installe');
       resolve({ success: false, error: 'NetBird non installe' });
@@ -183,7 +259,7 @@ function netbirdConnect(setupKey) {
     }
     
     console.log('[Ryvie][Main] Connexion NetBird...');
-    const connectCmd = `"${NETBIRD_PATH}" up --management-url https://netbird.ryvie.ovh --setup-key ${setupKey}`;
+    const connectCmd = `"${NETBIRD_PATH}" up --management-url https://netbird.ryvie.fr --setup-key ${setupKey}`;
     
     exec(connectCmd, { timeout: 30000, windowsHide: true }, (error, stdout, stderr) => {
       if (error) {
