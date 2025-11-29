@@ -92,6 +92,9 @@ if (!gotTheLock) {
   });
 
   app.whenReady().then(() => {
+    // Supprimer le raccourci NetBird au démarrage si présent
+    removeNetbirdShortcut();
+    
     createSplash();
     
     // Créer la fenêtre principale après un délai (pour laisser le splash s'afficher)
@@ -119,6 +122,28 @@ app.on('window-all-closed', () => {
 // ========================================
 // NETBIRD FUNCTIONS
 // ========================================
+
+// Supprime le raccourci NetBird du bureau s'il existe
+function removeNetbirdShortcut() {
+  if (!IS_WINDOWS) return;
+  
+  const possiblePaths = [
+    path.join(process.env.USERPROFILE, 'Desktop', 'NetBird.lnk'),
+    path.join(process.env.USERPROFILE, 'OneDrive', 'Desktop', 'NetBird.lnk'),
+    path.join(process.env.PUBLIC, 'Desktop', 'NetBird.lnk')
+  ];
+  
+  possiblePaths.forEach(desktopPath => {
+    if (fs.existsSync(desktopPath)) {
+      try {
+        fs.unlinkSync(desktopPath);
+        console.log('[Ryvie][Main] Raccourci bureau NetBird supprime:', desktopPath);
+      } catch (err) {
+        console.warn('[Ryvie][Main] Impossible de supprimer le raccourci bureau:', err.message);
+      }
+    }
+  });
+}
 
 // Verifie si NetBird est installe
 function isNetbirdInstalled() {
@@ -169,21 +194,11 @@ function installNetbird() {
           
           console.log('[Ryvie][Main] NetBird installe avec succes');
           
-          // Supprimer le raccourci bureau s'il existe
-          const desktopPath = path.join(process.env.USERPROFILE, 'Desktop', 'NetBird.lnk');
-          if (fs.existsSync(desktopPath)) {
-            try {
-              fs.unlinkSync(desktopPath);
-              console.log('[Ryvie][Main] Raccourci bureau NetBird supprime');
-            } catch (err) {
-              console.warn('[Ryvie][Main] Impossible de supprimer le raccourci bureau:', err.message);
-            }
-          }
-          
-          // Attendre un peu que l'installation se finalise
+          // Attendre que l'installation se finalise avant de supprimer le raccourci
           setTimeout(() => {
+            removeNetbirdShortcut();
             resolve({ success: true });
-          }, 3000);
+          }, 5000);
         });
       });
     } else {

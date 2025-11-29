@@ -192,9 +192,42 @@ async function checkConnection() {
       }
     }
   } else {
-    // Connexion locale échouée - utiliser le mode public
-    console.log('[Ryvie][Renderer] 🌐 Test local KO -> tentative connexion PUBLIQUE');
-    if (savedConfig && savedConfig.domains) {
+    // Connexion locale échouée - utiliser le mode public ou manuel
+    console.log('[Ryvie][Renderer] 🌐 Test local KO -> tentative connexion PUBLIQUE/MANUELLE');
+    
+    // Vérifier si c'est une configuration manuelle
+    if (savedConfig && savedConfig.mode === 'manual' && savedConfig.tunnelHost) {
+      console.log('[Ryvie][Renderer] 🔧 Configuration MANUELLE détectée - IP:', savedConfig.tunnelHost);
+      const manualUrl = `http://${savedConfig.tunnelHost}:3000`;
+      
+      // Tester si l'URL manuelle est accessible
+      try {
+        const testResponse = await fetch(manualUrl, { 
+          method: 'GET',
+          signal: AbortSignal.timeout(5000) 
+        });
+        
+        if (!testResponse.ok) {
+          throw new Error(`HTTP ${testResponse.status}`);
+        }
+        
+        console.log('[Ryvie][Renderer] ✅ Connexion MANUELLE réussie');
+        currentConfig = {
+          mode: 'manual',
+          ryvieId: savedConfig.ryvieId,
+          tunnelHost: savedConfig.tunnelHost,
+          setupKey: savedConfig.setupKey,
+          url: manualUrl,
+          domains: savedConfig.domains || {}
+        };
+        showConnected();
+        updateUI(currentConfig);
+      } catch (error) {
+        console.error('[Ryvie][Renderer] ❌ URL manuelle inaccessible:', error.message);
+        showError('La connexion manuelle à votre Ryvie est impossible. Vérifiez l\'IP du tunnel et que NetBird est connecté.');
+        return;
+      }
+    } else if (savedConfig && savedConfig.domains) {
       // Déterminer l'URL publique selon la présence de domains.app
       let publicUrl;
       if (savedConfig.domains.app) {
@@ -432,12 +465,21 @@ manualSetupConfirmBtn.addEventListener('click', async () => {
       ryvieId: 'manual-' + Date.now(),
       tunnelHost: tunnelIp,
       setupKey: setupKey,
-      url: `http://${tunnelIp}:3000`
+      url: `http://${tunnelIp}:3000`,
+      domains: {} // Ajouter un objet domains vide pour la compatibilité
     };
     
+    console.log('[Ryvie][Renderer] Sauvegarde de la configuration manuelle:', manualConfig);
+    
     // Sauvegarder la configuration
-    await window.electronAPI.saveConfig(manualConfig);
-    currentConfig = manualConfig;
+    const saveResult = await window.electronAPI.saveConfig(manualConfig);
+    if (saveResult) {
+      console.log('[Ryvie][Renderer] Configuration manuelle sauvegardée avec succès');
+      currentConfig = manualConfig;
+    } else {
+      console.error('[Ryvie][Renderer] Échec de la sauvegarde de la configuration');
+      throw new Error('Échec de la sauvegarde de la configuration');
+    }
     
     // Fermer la modale
     hideManualSetupModal();
