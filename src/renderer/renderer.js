@@ -1,4 +1,4 @@
-const LOCAL_APP_URL = 'http://ryvie.local:3000';
+const LOCAL_APP_URL = 'http://ryvie.local';
 
 let currentConfig = null;
 let pendingNewConfig = null;

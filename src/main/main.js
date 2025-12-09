@@ -8,7 +8,7 @@ app.disableHardwareAcceleration();
 
 const CONFIG_FILE = path.join(app.getPath('userData'), 'ryvie-config.json');
 const LOCAL_API_URL = 'http://ryvie.local:3002/api/settings/ryvie-domains';
-const LOCAL_APP_URL = 'http://ryvie.local:3000';
+const LOCAL_APP_URL = 'http://ryvie.local';
 
 // Flags de plateforme
 const IS_WINDOWS = process.platform === 'win32';
