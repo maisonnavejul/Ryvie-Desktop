@@ -40,8 +40,8 @@
       "icon": "build/icons/win/icon.ico"
     },
     "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
+      "oneClick": true,
+      "allowToChangeInstallationDirectory": false,
       "perMachine": false,
       "allowElevation": true,
       "installerLanguages": ["fr_FR"],
