@@ -31,9 +31,11 @@ const NETBIRD_INSTALLER_URL = IS_WINDOWS
 let mainWindow;
 let splashWindow;
 let updateInProgress = false;
+let updateInfo = null;
+let updateUserChoiceMade = false;
 
 // Configuration de l'auto-updater
-autoUpdater.autoDownload = true;
+autoUpdater.autoDownload = false;
 autoUpdater.autoInstallOnAppQuit = true;
 
 // Logs pour le débogage
@@ -147,6 +149,37 @@ function checkForUpdates() {
   });
 }
 
+// IPC SPLASH UPDATE CHOICE
+ipcMain.handle('start-update', async () => {
+  try {
+    updateUserChoiceMade = true;
+    if (!updateInfo) {
+      return { success: false, error: 'Aucune mise à jour détectée' };
+    }
+    if (splashWindow && !splashWindow.isDestroyed()) {
+      splashWindow.webContents.send('update-status', {
+        status: 'downloading',
+        message: `Téléchargement de la version ${updateInfo.version}...`,
+        percent: 0
+      });
+    }
+    await autoUpdater.downloadUpdate();
+    return { success: true };
+  } catch (error) {
+    console.error('[Ryvie][Main] Erreur start-update:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('skip-update', async () => {
+  updateUserChoiceMade = true;
+  // Ouvrir la fenêtre principale (pas de mise à jour maintenant)
+  if (!mainWindow) {
+    createMain();
+  }
+  return { success: true };
+});
+
 autoUpdater.on('checking-for-update', () => {
   console.log('[Ryvie][Main] Vérification des mises à jour en cours...');
   if (splashWindow && !splashWindow.isDestroyed()) {
@@ -157,10 +190,11 @@ autoUpdater.on('checking-for-update', () => {
 autoUpdater.on('update-available', (info) => {
   console.log('[Ryvie][Main] Mise à jour disponible:', info.version);
   updateInProgress = true;
+  updateInfo = info;
   if (splashWindow && !splashWindow.isDestroyed()) {
     splashWindow.webContents.send('update-status', { 
-      status: 'downloading', 
-      message: `Téléchargement de la version ${info.version}...`,
+      status: 'available',
+      message: `Mise à jour disponible : ${info.version}`,
       version: info.version
     });
   }
@@ -207,11 +241,12 @@ autoUpdater.on('update-downloaded', (info) => {
       message: 'Installation en cours...'
     });
   }
-  // Installer et redémarrer automatiquement après 2 secondes
+  // Installer et redémarrer automatiquement immédiatement
   setTimeout(() => {
     console.log('[Ryvie][Main] Installation et redémarrage...');
-    autoUpdater.quitAndInstall(false, true);
-  }, 2000);
+    // isSilent=true pour éviter l'affichage de l'installateur, isForceRunAfter=true pour relancer l'app
+    autoUpdater.quitAndInstall(true, true);
+  }, 1500);
 });
 
 // ========================================
