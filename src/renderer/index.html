@@ -115,6 +115,32 @@
         </div>
       </div>
     </div>
+
+    <div id="update-modal" class="modal hidden">
+      <div class="modal-content">
+        <div style="width: 60px; height: 60px; margin: 0 auto 20px; background: linear-gradient(135deg, #10b981, #059669); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <h2>Mise à jour disponible</h2>
+        <p style="margin-bottom: 20px; color: #64748b;">Une nouvelle version de Ryvie Desktop est disponible.</p>
+        <div style="background: rgba(102, 126, 234, 0.05); padding: 16px; border-radius: 12px; margin: 20px 0;">
+          <p style="margin: 8px 0;"><span style="color: #64748b;">Version :</span> <strong id="update-version"></strong></p>
+        </div>
+        <div id="update-progress" style="display: none; margin: 20px 0;">
+          <div style="background: #e2e8f0; border-radius: 8px; height: 8px; overflow: hidden;">
+            <div id="update-progress-bar" style="background: linear-gradient(90deg, #667eea, #764ba2); height: 100%; width: 0%; transition: width 0.3s;"></div>
+          </div>
+          <p id="update-progress-text" style="text-align: center; margin-top: 8px; color: #64748b; font-size: 13px;">Téléchargement en cours...</p>
+        </div>
+        <div class="modal-buttons">
+          <button id="download-update-btn" class="btn btn-primary"><span>Télécharger</span></button>
+          <button id="install-update-btn" class="btn btn-primary" style="display: none;"><span>Installer et redémarrer</span></button>
+          <button id="close-update-btn" class="btn btn-secondary"><span>Plus tard</span></button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script src="renderer.js"></script>

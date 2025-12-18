@@ -1,4 +1,5 @@
 const { app, BrowserWindow, ipcMain, shell } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const fs = require('fs');
 const { exec } = require('child_process');
@@ -29,6 +30,14 @@ const NETBIRD_INSTALLER_URL = IS_WINDOWS
 
 let mainWindow;
 let splashWindow;
+
+// Configuration de l'auto-updater
+autoUpdater.autoDownload = false;
+autoUpdater.autoInstallOnAppQuit = true;
+
+// Logs pour le débogage
+autoUpdater.logger = require('electron-log');
+autoUpdater.logger.transports.file.level = 'info';
 
 function createSplash() {
   splashWindow = new BrowserWindow({
@@ -100,6 +109,12 @@ if (!gotTheLock) {
     // Créer la fenêtre principale après un délai (pour laisser le splash s'afficher)
     setTimeout(() => {
       createMain();
+      // Vérifier les mises à jour après le démarrage
+      if (!app.isPackaged) {
+        console.log('[Ryvie][Main] Mode développement, pas de vérification de mise à jour');
+      } else {
+        checkForUpdates();
+      }
     }, 1500);
 
     app.on('activate', () => {
@@ -116,6 +131,63 @@ if (!gotTheLock) {
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
+  }
+});
+
+// ========================================
+// AUTO-UPDATER FUNCTIONS
+// ========================================
+
+function checkForUpdates() {
+  console.log('[Ryvie][Main] Vérification des mises à jour...');
+  autoUpdater.checkForUpdates().catch(err => {
+    console.error('[Ryvie][Main] Erreur lors de la vérification des mises à jour:', err);
+  });
+}
+
+autoUpdater.on('checking-for-update', () => {
+  console.log('[Ryvie][Main] Vérification des mises à jour en cours...');
+});
+
+autoUpdater.on('update-available', (info) => {
+  console.log('[Ryvie][Main] Mise à jour disponible:', info.version);
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('update-available', {
+      version: info.version,
+      releaseDate: info.releaseDate,
+      releaseNotes: info.releaseNotes
+    });
+  }
+});
+
+autoUpdater.on('update-not-available', (info) => {
+  console.log('[Ryvie][Main] Aucune mise à jour disponible. Version actuelle:', info.version);
+});
+
+autoUpdater.on('error', (err) => {
+  console.error('[Ryvie][Main] Erreur auto-updater:', err);
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('update-error', err.message);
+  }
+});
+
+autoUpdater.on('download-progress', (progressObj) => {
+  console.log(`[Ryvie][Main] Téléchargement: ${Math.round(progressObj.percent)}%`);
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('download-progress', {
+      percent: progressObj.percent,
+      transferred: progressObj.transferred,
+      total: progressObj.total
+    });
+  }
+});
+
+autoUpdater.on('update-downloaded', (info) => {
+  console.log('[Ryvie][Main] Mise à jour téléchargée:', info.version);
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('update-downloaded', {
+      version: info.version
+    });
   }
 });
 
@@ -374,6 +446,40 @@ ipcMain.handle('open-url', async (event, url) => {
   } catch (error) {
     console.error('[Ryvie][Main] Erreur ouverture URL:', error);
     return false;
+  }
+});
+
+// IPC AUTO-UPDATER
+ipcMain.handle('download-update', async () => {
+  try {
+    console.log('[Ryvie][Main] Téléchargement de la mise à jour...');
+    await autoUpdater.downloadUpdate();
+    return { success: true };
+  } catch (error) {
+    console.error('[Ryvie][Main] Erreur téléchargement mise à jour:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('install-update', async () => {
+  try {
+    console.log('[Ryvie][Main] Installation de la mise à jour...');
+    autoUpdater.quitAndInstall(false, true);
+    return { success: true };
+  } catch (error) {
+    console.error('[Ryvie][Main] Erreur installation mise à jour:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('check-for-updates', async () => {
+  try {
+    console.log('[Ryvie][Main] Vérification manuelle des mises à jour...');
+    const result = await autoUpdater.checkForUpdates();
+    return { success: true, updateInfo: result.updateInfo };
+  } catch (error) {
+    console.error('[Ryvie][Main] Erreur vérification mise à jour:', error);
+    return { success: false, error: error.message };
   }
 });
 

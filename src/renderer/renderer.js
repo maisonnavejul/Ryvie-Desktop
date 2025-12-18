@@ -35,6 +35,15 @@ const manualSetupError = document.getElementById('manual-setup-error');
 const manualSetupConfirmBtn = document.getElementById('manual-setup-confirm-btn');
 const manualSetupCancelBtn = document.getElementById('manual-setup-cancel-btn');
 
+const updateModal = document.getElementById('update-modal');
+const updateVersionEl = document.getElementById('update-version');
+const updateProgressEl = document.getElementById('update-progress');
+const updateProgressBar = document.getElementById('update-progress-bar');
+const updateProgressText = document.getElementById('update-progress-text');
+const downloadUpdateBtn = document.getElementById('download-update-btn');
+const installUpdateBtn = document.getElementById('install-update-btn');
+const closeUpdateBtn = document.getElementById('close-update-btn');
+
 // Helpers UI
 function setButtonLoading(isLoading) {
   if (!openRyvieBtn) return;
@@ -522,6 +531,116 @@ manualSetupModal.addEventListener('click', (e) => {
     hideManualSetupModal();
   }
 });
+
+// ========================================
+// GESTION DES MISES À JOUR
+// ========================================
+
+function showUpdateModal(version) {
+  if (!updateModal || !updateVersionEl) return;
+  updateVersionEl.textContent = version;
+  updateProgressEl.style.display = 'none';
+  downloadUpdateBtn.style.display = 'inline-flex';
+  installUpdateBtn.style.display = 'none';
+  updateModal.classList.remove('hidden');
+}
+
+function hideUpdateModal() {
+  if (!updateModal) return;
+  updateModal.classList.add('hidden');
+}
+
+// Écouter les événements de mise à jour
+if (window.electronAPI && window.electronAPI.onUpdateAvailable) {
+  window.electronAPI.onUpdateAvailable((info) => {
+    console.log('[Ryvie][Renderer] Mise à jour disponible:', info.version);
+    showUpdateModal(info.version);
+  });
+
+  window.electronAPI.onDownloadProgress((progress) => {
+    console.log('[Ryvie][Renderer] Progression téléchargement:', Math.round(progress.percent) + '%');
+    if (updateProgressEl && updateProgressBar && updateProgressText) {
+      updateProgressEl.style.display = 'block';
+      updateProgressBar.style.width = progress.percent + '%';
+      updateProgressText.textContent = `Téléchargement en cours... ${Math.round(progress.percent)}%`;
+    }
+  });
+
+  window.electronAPI.onUpdateDownloaded((info) => {
+    console.log('[Ryvie][Renderer] Mise à jour téléchargée:', info.version);
+    if (updateProgressText && downloadUpdateBtn && installUpdateBtn) {
+      updateProgressText.textContent = 'Téléchargement terminé !';
+      downloadUpdateBtn.style.display = 'none';
+      installUpdateBtn.style.display = 'inline-flex';
+    }
+  });
+
+  window.electronAPI.onUpdateError((error) => {
+    console.error('[Ryvie][Renderer] Erreur mise à jour:', error);
+    if (updateProgressText) {
+      updateProgressText.textContent = 'Erreur lors du téléchargement';
+      updateProgressText.style.color = '#ef4444';
+    }
+  });
+}
+
+// Bouton télécharger la mise à jour
+if (downloadUpdateBtn) {
+  downloadUpdateBtn.addEventListener('click', async () => {
+    console.log('[Ryvie][Renderer] Téléchargement de la mise à jour...');
+    downloadUpdateBtn.disabled = true;
+    downloadUpdateBtn.classList.add('loading');
+    
+    try {
+      const result = await window.electronAPI.downloadUpdate();
+      if (!result.success) {
+        console.error('[Ryvie][Renderer] Erreur téléchargement:', result.error);
+        if (updateProgressText) {
+          updateProgressText.textContent = 'Erreur lors du téléchargement';
+          updateProgressText.style.color = '#ef4444';
+        }
+      }
+    } catch (error) {
+      console.error('[Ryvie][Renderer] Erreur:', error);
+    } finally {
+      downloadUpdateBtn.disabled = false;
+      downloadUpdateBtn.classList.remove('loading');
+    }
+  });
+}
+
+// Bouton installer la mise à jour
+if (installUpdateBtn) {
+  installUpdateBtn.addEventListener('click', async () => {
+    console.log('[Ryvie][Renderer] Installation de la mise à jour...');
+    installUpdateBtn.disabled = true;
+    installUpdateBtn.classList.add('loading');
+    
+    try {
+      await window.electronAPI.installUpdate();
+    } catch (error) {
+      console.error('[Ryvie][Renderer] Erreur installation:', error);
+      installUpdateBtn.disabled = false;
+      installUpdateBtn.classList.remove('loading');
+    }
+  });
+}
+
+// Bouton fermer la modal de mise à jour
+if (closeUpdateBtn) {
+  closeUpdateBtn.addEventListener('click', () => {
+    hideUpdateModal();
+  });
+}
+
+// Fermer la modal si on clique en dehors
+if (updateModal) {
+  updateModal.addEventListener('click', (e) => {
+    if (e.target === updateModal) {
+      hideUpdateModal();
+    }
+  });
+}
 
 // Démarrage de l'application
 checkConnection();
