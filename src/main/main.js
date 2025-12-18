@@ -508,3 +508,25 @@ ipcMain.handle('setup-netbird', async (event, setupKey) => {
     return { success: false, error: error.message };
   }
 });
+
+// IPC DISCONNECT
+ipcMain.handle('disconnect', async () => {
+  try {
+    console.log('[Ryvie][Main] Deconnexion demandee');
+    
+    // Deconnecter NetBird
+    await netbirdLogout();
+    
+    // Supprimer la configuration
+    if (fs.existsSync(CONFIG_FILE)) {
+      fs.unlinkSync(CONFIG_FILE);
+      console.log('[Ryvie][Main] Configuration supprimee');
+    }
+    
+    console.log('[Ryvie][Main] Deconnexion reussie');
+    return { success: true };
+  } catch (error) {
+    console.error('[Ryvie][Main] Erreur deconnexion:', error);
+    return { success: false, error: error.message };
+  }
+});

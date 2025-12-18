@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   testLocalConnection: () => ipcRenderer.invoke('test-local-connection'),
   openUrl: (url) => ipcRenderer.invoke('open-url', url),
   setupNetbird: (setupKey) => ipcRenderer.invoke('setup-netbird', setupKey),
+  disconnect: () => ipcRenderer.invoke('disconnect'),
   
   // API de mise à jour
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),

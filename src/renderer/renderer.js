@@ -21,6 +21,7 @@ const errorMessageEl = document.getElementById('error-message');
 const openRyvieBtn = document.getElementById('open-ryvie-btn');
 const refreshBtn = document.getElementById('refresh-btn');
 const retryBtn = document.getElementById('retry-btn');
+const disconnectBtn = document.getElementById('disconnect-btn');
 
 const currentIdSpan = document.getElementById('current-id');
 const newIdSpan = document.getElementById('new-id');
@@ -354,6 +355,40 @@ retryBtn.addEventListener('click', () => {
   isInitialLoad = false;
   checkConnection();
 });
+
+if (disconnectBtn) {
+  disconnectBtn.addEventListener('click', async () => {
+    if (!confirm('Êtes-vous sûr de vouloir vous déconnecter ? Cela déconnectera NetBird et supprimera la configuration.')) {
+      return;
+    }
+    
+    console.log('[Ryvie][Renderer] Déconnexion demandée...');
+    disconnectBtn.disabled = true;
+    disconnectBtn.classList.add('loading');
+    
+    try {
+      const result = await window.electronAPI.disconnect();
+      if (result.success) {
+        console.log('[Ryvie][Renderer] Déconnexion réussie');
+        currentConfig = null;
+        pendingNewConfig = null;
+        hasAutoOpened = false;
+        isInitialLoad = true;
+        isRyvieIdVisible = false;
+        checkConnection();
+      } else {
+        console.error('[Ryvie][Renderer] Erreur déconnexion:', result.error);
+        alert('Erreur lors de la déconnexion: ' + result.error);
+      }
+    } catch (error) {
+      console.error('[Ryvie][Renderer] Erreur déconnexion:', error);
+      alert('Erreur lors de la déconnexion');
+    } finally {
+      disconnectBtn.disabled = false;
+      disconnectBtn.classList.remove('loading');
+    }
+  });
+}
 
 if (showRyvieIdBtn && ryvieIdValueEl) {
   showRyvieIdBtn.addEventListener('click', () => {
