@@ -42,6 +42,7 @@
       justify-content: center;
       position: relative;
       animation: fadeUp 400ms ease-out both;
+      padding: 20px;
     }
     .logo {
       width: 72px;
@@ -77,6 +78,36 @@
     }
     .dot:nth-child(2) { animation-delay: .2s; }
     .dot:nth-child(3) { animation-delay: .4s; }
+    .update-info {
+      display: none;
+      width: 100%;
+      margin-top: 20px;
+    }
+    .update-message {
+      font-size: 13px;
+      color: #64748b;
+      text-align: center;
+      margin-bottom: 12px;
+    }
+    .progress-container {
+      width: 100%;
+      height: 8px;
+      background: #e2e8f0;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #0ea5e9, #2563eb);
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+    .progress-percent {
+      font-size: 12px;
+      color: #94a3b8;
+      text-align: center;
+      margin-top: 6px;
+    }
     @keyframes fadeUp { from { transform: translateY(6px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
     @keyframes pulse {
       0%, 100% { transform: scale(.8); opacity: .25; }
@@ -89,12 +120,52 @@
     <div class="card">
       <img class="logo" src="../../ryvielogo0.png" alt="Ryvie" />
       <div class="title">Ryvie Desktop</div>
-      <div class="dots" aria-label="Chargement">
+      <div class="dots" id="loading-dots" aria-label="Chargement">
         <div class="dot"></div>
         <div class="dot"></div>
         <div class="dot"></div>
       </div>
+      <div class="update-info" id="update-info">
+        <div class="update-message" id="update-message">Vérification des mises à jour...</div>
+        <div class="progress-container">
+          <div class="progress-bar" id="progress-bar"></div>
+        </div>
+        <div class="progress-percent" id="progress-percent"></div>
+      </div>
     </div>
   </div>
+  <script>
+    if (window.electronAPI && window.electronAPI.onUpdateStatus) {
+      window.electronAPI.onUpdateStatus((status) => {
+        const dots = document.getElementById('loading-dots');
+        const updateInfo = document.getElementById('update-info');
+        const message = document.getElementById('update-message');
+        const progressBar = document.getElementById('progress-bar');
+        const progressPercent = document.getElementById('progress-percent');
+
+        if (status.status === 'checking') {
+          dots.style.display = 'flex';
+          updateInfo.style.display = 'none';
+        } else if (status.status === 'downloading') {
+          dots.style.display = 'none';
+          updateInfo.style.display = 'block';
+          message.textContent = status.message || 'Téléchargement en cours...';
+          if (status.percent !== undefined) {
+            progressBar.style.width = status.percent + '%';
+            progressPercent.textContent = Math.round(status.percent) + '%';
+          }
+        } else if (status.status === 'installing') {
+          dots.style.display = 'none';
+          updateInfo.style.display = 'block';
+          message.textContent = status.message || 'Installation en cours...';
+          progressBar.style.width = '100%';
+          progressPercent.textContent = '';
+        } else if (status.status === 'error') {
+          dots.style.display = 'flex';
+          updateInfo.style.display = 'none';
+        }
+      });
+    }
+  </script>
 </body>
 </html>

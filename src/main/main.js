@@ -30,9 +30,10 @@ const NETBIRD_INSTALLER_URL = IS_WINDOWS
 
 let mainWindow;
 let splashWindow;
+let updateInProgress = false;
 
 // Configuration de l'auto-updater
-autoUpdater.autoDownload = false;
+autoUpdater.autoDownload = true;
 autoUpdater.autoInstallOnAppQuit = true;
 
 // Logs pour le débogage
@@ -51,7 +52,8 @@ function createSplash() {
     icon: path.join(__dirname, '../../build/icons/win/icon.ico'),
     webPreferences: {
       nodeIntegration: false,
-      contextIsolation: true
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js')
     }
   });
   splashWindow.loadFile(path.join(__dirname, '../renderer/splash.html'));
@@ -106,16 +108,16 @@ if (!gotTheLock) {
     
     createSplash();
     
-    // Créer la fenêtre principale après un délai (pour laisser le splash s'afficher)
-    setTimeout(() => {
-      createMain();
-      // Vérifier les mises à jour après le démarrage
-      if (!app.isPackaged) {
-        console.log('[Ryvie][Main] Mode développement, pas de vérification de mise à jour');
-      } else {
-        checkForUpdates();
-      }
-    }, 1500);
+    // Vérifier les mises à jour AVANT d'ouvrir la fenêtre principale
+    if (!app.isPackaged) {
+      console.log('[Ryvie][Main] Mode développement, pas de vérification de mise à jour');
+      setTimeout(() => {
+        createMain();
+      }, 1500);
+    } else {
+      console.log('[Ryvie][Main] Vérification des mises à jour au démarrage...');
+      checkForUpdates();
+    }
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) {
@@ -147,48 +149,69 @@ function checkForUpdates() {
 
 autoUpdater.on('checking-for-update', () => {
   console.log('[Ryvie][Main] Vérification des mises à jour en cours...');
+  if (splashWindow && !splashWindow.isDestroyed()) {
+    splashWindow.webContents.send('update-status', { status: 'checking', message: 'Vérification des mises à jour...' });
+  }
 });
 
 autoUpdater.on('update-available', (info) => {
   console.log('[Ryvie][Main] Mise à jour disponible:', info.version);
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('update-available', {
-      version: info.version,
-      releaseDate: info.releaseDate,
-      releaseNotes: info.releaseNotes
+  updateInProgress = true;
+  if (splashWindow && !splashWindow.isDestroyed()) {
+    splashWindow.webContents.send('update-status', { 
+      status: 'downloading', 
+      message: `Téléchargement de la version ${info.version}...`,
+      version: info.version
     });
   }
 });
 
 autoUpdater.on('update-not-available', (info) => {
   console.log('[Ryvie][Main] Aucune mise à jour disponible. Version actuelle:', info.version);
+  // Pas de mise à jour, ouvrir la fenêtre principale normalement
+  setTimeout(() => {
+    createMain();
+  }, 1000);
 });
 
 autoUpdater.on('error', (err) => {
   console.error('[Ryvie][Main] Erreur auto-updater:', err);
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('update-error', err.message);
+  updateInProgress = false;
+  // En cas d'erreur, ouvrir quand même la fenêtre principale
+  if (!mainWindow) {
+    setTimeout(() => {
+      createMain();
+    }, 1000);
+  }
+  if (splashWindow && !splashWindow.isDestroyed()) {
+    splashWindow.webContents.send('update-status', { status: 'error', message: 'Erreur lors de la mise à jour' });
   }
 });
 
 autoUpdater.on('download-progress', (progressObj) => {
   console.log(`[Ryvie][Main] Téléchargement: ${Math.round(progressObj.percent)}%`);
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('download-progress', {
-      percent: progressObj.percent,
-      transferred: progressObj.transferred,
-      total: progressObj.total
+  if (splashWindow && !splashWindow.isDestroyed()) {
+    splashWindow.webContents.send('update-status', {
+      status: 'downloading',
+      message: `Téléchargement en cours...`,
+      percent: progressObj.percent
     });
   }
 });
 
 autoUpdater.on('update-downloaded', (info) => {
   console.log('[Ryvie][Main] Mise à jour téléchargée:', info.version);
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('update-downloaded', {
-      version: info.version
+  if (splashWindow && !splashWindow.isDestroyed()) {
+    splashWindow.webContents.send('update-status', {
+      status: 'installing',
+      message: 'Installation en cours...'
     });
   }
+  // Installer et redémarrer automatiquement après 2 secondes
+  setTimeout(() => {
+    console.log('[Ryvie][Main] Installation et redémarrage...');
+    autoUpdater.quitAndInstall(false, true);
+  }, 2000);
 });
 
 // ========================================
