@@ -10,6 +10,7 @@ let isRyvieIdVisible = false;
 // Éléments DOM
 const loadingSection = document.getElementById('loading');
 const connectedSection = document.getElementById('connected');
+const disconnectedSection = document.getElementById('disconnected');
 const errorSection = document.getElementById('error');
 const warningModal = document.getElementById('warning-modal');
 
@@ -29,6 +30,8 @@ const acceptBtn = document.getElementById('accept-btn');
 const refuseBtn = document.getElementById('refuse-btn');
 
 const manualSetupBtn = document.getElementById('manual-setup-btn');
+const manualSetupBtnDisconnected = document.getElementById('manual-setup-btn-disconnected');
+const retryConnectionBtn = document.getElementById('retry-connection-btn');
 const manualSetupModal = document.getElementById('manual-setup-modal');
 const manualSetupKeyInput = document.getElementById('manual-setup-key-input');
 const manualTunnelIpInput = document.getElementById('manual-tunnel-ip-input');
@@ -68,12 +71,14 @@ function showLoading() {
   setVisibility(loadingSection, true);
   setVisibility(connectedSection, false);
   setVisibility(errorSection, false);
+  setVisibility(disconnectedSection, false);
 }
 
 function showConnected() {
   setVisibility(loadingSection, false);
-  setVisibility(connectedSection, true);
   setVisibility(errorSection, false);
+  setVisibility(disconnectedSection, false);
+  setVisibility(connectedSection, true);
   // Par défaut, le bouton reste désactivé tant que l'ouverture auto n'est pas terminée
   setButtonLoading(true);
 }
@@ -81,10 +86,18 @@ function showConnected() {
 function showError(message = 'Impossible de se connecter à Ryvie') {
   setVisibility(loadingSection, false);
   setVisibility(connectedSection, false);
+  setVisibility(disconnectedSection, false);
   setVisibility(errorSection, true);
   if (errorMessageEl) {
     errorMessageEl.textContent = message;
   }
+}
+
+function showDisconnected() {
+  setVisibility(loadingSection, false);
+  setVisibility(connectedSection, false);
+  setVisibility(errorSection, false);
+  setVisibility(disconnectedSection, true);
 }
 
 function showWarningModal(currentId, newId) {
@@ -373,17 +386,20 @@ if (disconnectBtn) {
         currentConfig = null;
         pendingNewConfig = null;
         hasAutoOpened = false;
-        isInitialLoad = true;
+        isInitialLoad = false;
         isRyvieIdVisible = false;
-        checkConnection();
+        
+        // Afficher l'écran de déconnexion avec les options Retry/Saisir Setup Key
+        showDisconnected();
       } else {
         console.error('[Ryvie][Renderer] Erreur déconnexion:', result.error);
         alert('Erreur lors de la déconnexion: ' + result.error);
+        disconnectBtn.disabled = false;
+        disconnectBtn.classList.remove('loading');
       }
     } catch (error) {
       console.error('[Ryvie][Renderer] Erreur déconnexion:', error);
       alert('Erreur lors de la déconnexion');
-    } finally {
       disconnectBtn.disabled = false;
       disconnectBtn.classList.remove('loading');
     }
@@ -446,6 +462,19 @@ refuseBtn.addEventListener('click', () => {
 manualSetupBtn.addEventListener('click', () => {
   showManualSetupModal();
 });
+
+if (manualSetupBtnDisconnected) {
+  manualSetupBtnDisconnected.addEventListener('click', () => {
+    showManualSetupModal();
+  });
+}
+
+if (retryConnectionBtn) {
+  retryConnectionBtn.addEventListener('click', () => {
+    isInitialLoad = false;
+    checkConnection();
+  });
+}
 
 manualSetupCancelBtn.addEventListener('click', () => {
   hideManualSetupModal();

@@ -56,6 +56,25 @@
       </div>
     </div>
 
+    <div id="disconnected" class="status-section section hidden">
+      <div class="status-badge" style="background: linear-gradient(135deg, #0ea5e9, #2563eb); color: white;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M13 7V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2h6a2 2 0 002-2v-1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <h3 style="font-size: 18px; font-weight: 600; color: #0f172a; margin: 16px 0 8px;">Déconnecté</h3>
+      <p style="color: #64748b; font-size: 14px; margin-bottom: 20px;">Choisissez comment vous souhaitez vous reconnecter</p>
+      <div class="actions-row">
+        <button id="retry-connection-btn" class="btn btn-secondary">
+          <span>Réessayer</span>
+        </button>
+        <button id="manual-setup-btn-disconnected" class="btn btn-primary">
+          <span>Saisir Setup Key</span>
+        </button>
+      </div>
+    </div>
+
     <div id="error" class="status-section section hidden">
       <div class="status-badge error">
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
