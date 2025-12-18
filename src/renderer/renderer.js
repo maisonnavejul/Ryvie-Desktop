@@ -371,7 +371,7 @@ retryBtn.addEventListener('click', () => {
 
 if (disconnectBtn) {
   disconnectBtn.addEventListener('click', async () => {
-    if (!confirm('Êtes-vous sûr de vouloir vous déconnecter ? Cela déconnectera NetBird et supprimera la configuration.')) {
+    if (!confirm('Êtes-vous sûr de vouloir vous déconnecter ?\n\nPour vous reconnecter, vous devrez :\n• Être connecté au même WiFi que votre Ryvie, OU\n• Saisir une clé de configuration manuellement')) {
       return;
     }
     
@@ -388,6 +388,10 @@ if (disconnectBtn) {
         hasAutoOpened = false;
         isInitialLoad = false;
         isRyvieIdVisible = false;
+        
+        // Réactiver le bouton de déconnexion
+        disconnectBtn.disabled = false;
+        disconnectBtn.classList.remove('loading');
         
         // Afficher l'écran de déconnexion avec les options Retry/Saisir Setup Key
         showDisconnected();
