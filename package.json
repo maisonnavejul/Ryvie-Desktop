@@ -1,6 +1,6 @@
 {
   "name": "ryvie-desktop",
-  "version": "0.0.21",
+  "version": "0.0.22",
   "description": "Application desktop pour Ryvie avec détection de connexion locale/publique",
   "main": "src/main/main.js",
   "scripts": {
@@ -60,8 +60,11 @@
       "target": ["dmg", "zip"],
       "icon": "build/icons/mac/icon.icns",
       "category": "public.app-category.productivity",
-      "hardenedRuntime": false,
-      "gatekeeperAssess": false
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "identity": "Developer ID Application: Jules Maisonnave (GW9M6A3925)"
     },
     "dmg": {
       "contents": [

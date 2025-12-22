@@ -189,6 +189,12 @@ Les builds sont automatiquement uploadés sur GitHub Releases :
 
 ## Dépannage
 
+### macOS : Première ouverture
+
+Lors de la première ouverture sur macOS, faites **clic droit → Ouvrir** (au lieu de double-cliquer) pour autoriser l'app signée avec Developer ID.
+
+### Autres problèmes
+
 - Si `ryvie.local` n'est pas résolu: vérifier DNS local/hosts ou la disponibilité du serveur.
 - Si rien ne s'ouvre: lancer depuis un terminal et vérifier la console.
 - Pour forcer l'ouverture locale: vérifiez que l'API locale répond avec `success: true` et fournit `domains`.
