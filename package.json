@@ -64,7 +64,7 @@
       "gatekeeperAssess": false,
       "entitlements": "build/entitlements.mac.plist",
       "entitlementsInherit": "build/entitlements.mac.plist",
-      "identity": "Developer ID Application: Jules Maisonnave (GW9M6A3925)"
+      "identity": "Jules Maisonnave (GW9M6A3925)"
     },
     "dmg": {
       "contents": [
