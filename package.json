@@ -20,7 +20,10 @@
     "electron",
     "desktop"
   ],
-  "author": "Ryvie",
+  "author": {
+    "name": "Jules Maisonnave",
+    "email": "jules.maisonnave@gmail.com"
+  },
   "license": "MIT",
   "dependencies": {
     "electron-log": "^5.4.3",
