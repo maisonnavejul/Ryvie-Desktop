@@ -64,7 +64,10 @@
       "gatekeeperAssess": false,
       "entitlements": "build/entitlements.mac.plist",
       "entitlementsInherit": "build/entitlements.mac.plist",
-      "identity": "Jules Maisonnave (GW9M6A3925)"
+      "identity": "Jules Maisonnave (GW9M6A3925)",
+      "notarize": {
+        "teamId": "GW9M6A3925"
+      }
     },
     "dmg": {
       "contents": [
