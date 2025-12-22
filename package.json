@@ -6,9 +6,9 @@
   "scripts": {
     "start": "electron .",
     "build": "electron-builder",
-    "build:win": "npm run icons:win && electron-builder --win",
-    "build:mac": "npm run icons:mac && electron-builder --mac",
-    "build:linux": "electron-builder --linux",
+    "build:win": "npm run icons:win && electron-builder --win --publish never",
+    "build:mac": "npm run icons:mac && electron-builder --mac --publish never",
+    "build:linux": "electron-builder --linux --publish never",
     "build:all": "npm run icons:all && electron-builder -mwl",
     "icons:win": "node scripts/generate-icon.js",
     "icons:mac": "node scripts/generate-icon-mac.js",
