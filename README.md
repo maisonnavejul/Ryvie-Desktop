@@ -16,7 +16,7 @@ Application Electron pour lancer Ryvie avec détection automatique de la disponi
 ## Prérequis
 
 - Node.js 18+ recommandé
-- Windows (build configuré pour Windows)
+- Windows, macOS ou Linux (builds configurés pour les 3 plateformes)
 
 ## Installation
 
@@ -35,10 +35,25 @@ npm start
 | Commande | Description |
 |----------|-------------|
 | `npm start` | Lance l'application en mode développement. |
-| `npm run icons:win` | Génère l'icône Windows (`build/icons/win/icon.ico`) à partir du SVG avec fond blanc arrondi. |
-| `npm run build:win` | Génère l'installeur Windows (exécute d'abord `icons:win`). |
+| `npm run icons:win` | Génère l'icône Windows (`.ico`) à partir du SVG avec fond blanc arrondi. |
+| `npm run icons:mac` | Génère les icônes macOS (`.icns` et PNG pour Linux). |
+| `npm run icons:all` | Génère toutes les icônes (Windows + macOS/Linux). |
+| `npm run build:win` | Build Windows (génère `.exe`). |
+| `npm run build:mac` | Build macOS (génère `.dmg` et `.zip`). |
+| `npm run build:linux` | Build Linux (génère `.AppImage` et `.deb`). |
+| `npm run build:all` | Build pour toutes les plateformes (nécessite l'OS correspondant). |
+| `npm run publish` | Publie les builds sur GitHub Releases. |
 
-L'installeur (.exe) est produit dans `dist/`.
+Les installeurs sont produits dans `dist/`.
+
+### Builds locaux par plateforme
+
+- **Windows** : `npm run build:win` (produit `.exe`)
+- **macOS** : `npm run build:mac` (produit `.dmg` et `.zip`)
+- **Linux** : `npm run build:linux` (produit `.AppImage` et `.deb`)
+
+> ⚠️ **Important** : Vous ne pouvez builder que pour votre OS actuel en local.
+> Pour builder pour toutes les plateformes, utilisez GitHub Actions (voir ci-dessous).
 
 ## Utilisation
 
@@ -94,29 +109,67 @@ Raccourcis utiles: `F11` (plein écran), `Esc` (sortie du plein écran, si kiosq
   - API locale: `http://ryvie.local:3002/api/settings/ryvie-domains`
   - App locale: `http://ryvie.local:3000`
 
-## Icône style app (coins arrondis)
+## Icônes multi-plateformes (coins arrondis)
 
-- Source: `ryvielogo0.svg`
-- Script de génération: `npm run icons:win`
-  - Tailles générées: 16, 24, 32, 48, 64, 128, 256 px
-  - Fond blanc avec coins arrondis façon iOS
-- Fichier de sortie: `build/icons/win/icon.ico`
+- **Source** : `ryvielogo0.svg`
+- **Style** : Fond blanc avec coins arrondis façon iOS
 
-> ⚠️ Réexécuter `npm run icons:win` avant chaque build si le SVG évolue.
+### Windows
+- Script : `npm run icons:win`
+- Tailles : 16, 24, 32, 48, 64, 128, 256 px
+- Sortie : `build/icons/win/icon.ico`
+
+### macOS
+- Script : `npm run icons:mac`
+- Tailles : 16@1x/2x, 32@1x/2x, 128@1x/2x, 256@1x/2x, 512@1x/2x
+- Sortie : `build/icons/mac/icon.icns` (+ `.iconset/`)
+
+### Linux
+- Généré automatiquement avec `npm run icons:mac`
+- Tailles PNG : 16, 32, 64, 128, 256, 512, 1024 px
+- Sortie : `build/icons/mac/png/`
+
+> ⚠️ Réexécuter `npm run icons:all` avant chaque build si le SVG évolue.
+
+## Builds automatiques avec GitHub Actions
+
+### Configuration
+
+Un workflow GitHub Actions (`.github/workflows/build.yml`) est configuré pour builder automatiquement sur les 3 plateformes.
+
+### Déclenchement
+
+**Option 1 : Tag de version (recommandé)**
+```bash
+git tag v0.0.16
+git push origin v0.0.16
+```
+→ Build automatique + création d'une release GitHub avec tous les installeurs.
+
+**Option 2 : Déclenchement manuel**
+- Allez dans l'onglet "Actions" de votre repo GitHub
+- Sélectionnez "Build & Release"
+- Cliquez sur "Run workflow"
+
+### Résultats
+
+Les builds sont automatiquement uploadés sur GitHub Releases :
+- **Windows** : `Ryvie-Setup-x.x.x.exe` + fichiers de mise à jour
+- **macOS** : `Ryvie-x.x.x.dmg` + `.zip` + fichiers de mise à jour
+- **Linux** : `Ryvie-x.x.x.AppImage` + `.deb`
 
 ## Mises à jour automatiques (Electron Updater)
 
-1. **Hébergement des releases**: configurer la section `build.publish` (GitHub Releases, S3, serveur HTTPS, etc.).
-2. **Incrémenter `version`** dans `package.json` avant chaque publication.
-3. **Publier** avec:
+1. **Incrémenter `version`** dans `package.json` avant chaque publication.
+2. **Créer un tag** :
    ```bash
-   npm run build:win -- --publish always
+   git tag v0.0.16
+   git push origin v0.0.16
    ```
-   → Génère `Ryvie-Setup-x.x.x.exe`, `latest.yml`, `*.blockmap`.
-4. **Code**: utiliser `electron-updater` dans `src/main/main.js` pour `autoUpdater.checkForUpdatesAndNotify()` et relayer les événements (`update_available`, `update_ready`, `update_error`) vers le renderer. Ajouter un handler IPC `autoUpdater.quitAndInstall()` côté main.
-5. **UI**: dans `renderer.js`, afficher un message/bouton quand `update_ready` est reçu.
+3. **GitHub Actions** build automatiquement et publie sur GitHub Releases.
+4. **L'app** vérifie automatiquement les mises à jour au démarrage.
 
-> Conseil: tester sur une VM (release « draft ») avant déploiement public. Prévoir la signature du binaire pour éviter les alertes SmartScreen.
+> **Note** : Les mises à jour automatiques fonctionnent sur Windows et macOS. Sur Linux, l'utilisateur doit télécharger manuellement la nouvelle version.
 
 ## Structure du projet
 

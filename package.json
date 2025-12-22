@@ -7,8 +7,13 @@
     "start": "electron .",
     "build": "electron-builder",
     "build:win": "npm run icons:win && electron-builder --win",
+    "build:mac": "npm run icons:mac && electron-builder --mac",
+    "build:linux": "electron-builder --linux",
+    "build:all": "npm run icons:all && electron-builder -mwl",
     "icons:win": "node scripts/generate-icon.js",
-    "publish": "npm run icons:win && electron-builder --win --publish always"
+    "icons:mac": "node scripts/generate-icon-mac.js",
+    "icons:all": "node scripts/generate-icon.js && node scripts/generate-icon-mac.js",
+    "publish": "npm run icons:all && electron-builder -mwl --publish always"
   },
   "keywords": [
     "ryvie",
@@ -46,6 +51,34 @@
       "allowElevation": true,
       "installerLanguages": ["fr_FR"],
       "deleteAppDataOnUninstall": false
+    },
+    "mac": {
+      "target": ["dmg", "zip"],
+      "icon": "build/icons/mac/icon.icns",
+      "category": "public.app-category.productivity",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
+    },
+    "dmg": {
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "icon": "build/icons/png",
+      "category": "Utility"
     }
   }
 }
