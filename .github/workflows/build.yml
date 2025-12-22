@@ -57,7 +57,7 @@ jobs:
           name: windows-build
           path: |
             dist/*.exe
-            dist/*.yml
+            dist/latest.yml
             dist/*.blockmap
       
       - name: Upload macOS artifacts
@@ -68,7 +68,7 @@ jobs:
           path: |
             dist/*.dmg
             dist/*.zip
-            dist/*.yml
+            dist/latest-mac.yml
             dist/*.blockmap
       
       - name: Upload Linux artifacts
@@ -79,7 +79,7 @@ jobs:
           path: |
             dist/*.AppImage
             dist/*.deb
-            dist/*.yml
+            dist/latest-linux.yml
 
   release:
     needs: build
