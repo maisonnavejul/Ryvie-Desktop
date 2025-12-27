@@ -137,6 +137,8 @@ Raccourcis utiles: `F11` (plein écran), `Esc` (sortie du plein écran, si kiosq
 
 Un workflow GitHub Actions (`.github/workflows/build.yml`) est configuré pour builder automatiquement sur les 3 plateformes.
 
+**📱 macOS :** L'app est automatiquement **signée et notarisée** avec un certificat Developer ID. Voir [MACOS_SIGNING.md](MACOS_SIGNING.md) pour la documentation complète.
+
 ### Déclenchement
 
 **Option 1 : Tag de version (recommandé)**
@@ -188,6 +190,14 @@ Les builds sont automatiquement uploadés sur GitHub Releases :
 - electron-builder
 
 ## Dépannage
+
+### macOS : Installation
+
+L'application est **signée et notarisée** avec un certificat Apple Developer ID. Elle s'ouvre sans avertissement de sécurité.
+
+Si vous rencontrez un message de sécurité, consultez [MACOS_SIGNING.md](MACOS_SIGNING.md#dépannage).
+
+### Autres problèmes
 
 - Si `ryvie.local` n'est pas résolu: vérifier DNS local/hosts ou la disponibilité du serveur.
 - Si rien ne s'ouvre: lancer depuis un terminal et vérifier la console.
