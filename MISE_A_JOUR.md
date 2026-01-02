@@ -8,17 +8,15 @@ Le système de mise à jour automatique est maintenant configuré avec **electro
 
 ### 1. Mettre à jour le package.json
 
-Dans `package.json`, vous devez modifier la section `publish` avec vos informations GitHub :
+Dans `package.json`, vérifiez que la section `publish` pointe bien vers le dépôt `ryvieos/Ryvie-Desktop` (déjà configuré par défaut) :
 
 ```json
 "publish": {
   "provider": "github",
-  "owner": "votre-username",
+  "owner": "ryvieos",
   "repo": "Ryvie-Desktop"
 }
 ```
-
-Remplacez `votre-username` par votre nom d'utilisateur GitHub.
 
 ### 2. Créer un token GitHub
 
@@ -45,33 +43,39 @@ $env:GH_TOKEN="votre_token_github"
 
 ## 🚀 Publier une nouvelle version
 
-### 1. Mettre à jour la version
+### Option recommandée : GitHub Actions (`.github/workflows/build.yml`)
 
-Modifiez le numéro de version dans `package.json` :
-```json
-"version": "0.0.9"
-```
+Le workflow **Build & Release** se lance automatiquement lorsqu’un tag `v*` est poussé (ex. `v0.0.24`). Il construit les versions Windows/Mac/Linux puis crée la release GitHub avec les artefacts.
 
-### 2. Créer le build et publier
+1. Met à jour `package.json` avec la nouvelle version (ex. `0.0.24`).
+2. Committe et pousse les changements sur la branche principale :
+   ```bash
+   git add package.json package-lock.json
+   git commit -m "chore: bump version to 0.0.24"
+   git push origin main
+   ```
+3. Crée un tag sémantique **avec le préfixe `v`** puis pousse-le :
+   ```bash
+   git tag v0.0.24
+   git push origin v0.0.24
+   ```
+4. GitHub Actions exécute alors les builds (`windows-latest`, `macos-latest`, `ubuntu-latest`) et publie automatiquement la release grâce à `softprops/action-gh-release`. Suis la progression dans l’onglet **Actions**.
+
+> Besoin de relancer sans nouveau tag ? Utilise le bouton **Run workflow** (événement `workflow_dispatch`) depuis GitHub.
+
+### Option locale (si besoin ponctuel)
+
+Tu peux toujours générer et publier manuellement :
 
 ```bash
 npm run build:win
-```
-
-Puis publiez sur GitHub :
-```bash
 npx electron-builder --win --publish always
 ```
 
-Ou en une seule commande :
-```bash
-npx electron-builder --win --publish always
-```
-
-### Options de publication :
+Options utiles :
 - `--publish always` : Publie toujours sur GitHub
-- `--publish never` : Ne publie jamais (build local uniquement)
-- `--publish onTag` : Publie uniquement si c'est un tag Git
+- `--publish never` : Build local uniquement
+- `--publish onTag` : Publie uniquement si c’est un tag Git
 
 ## 📱 Fonctionnement pour l'utilisateur
 
