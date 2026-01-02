@@ -45,23 +45,34 @@ $env:GH_TOKEN="votre_token_github"
 
 ### Option recommandée : GitHub Actions (`.github/workflows/build.yml`)
 
-Le workflow **Build & Release** se lance automatiquement lorsqu’un tag `v*` est poussé (ex. `v0.0.24`). Il construit les versions Windows/Mac/Linux puis crée la release GitHub avec les artefacts.
+Le workflow **Build & Release** se lance automatiquement lorsqu’un tag `v*` est poussé (ex. `v1.2.3`). Il construit les versions Windows/Mac/Linux puis crée la release GitHub avec les artefacts.
 
-1. Met à jour `package.json` avec la nouvelle version (ex. `0.0.24`).
+1. Met à jour `package.json` avec la nouvelle version (ex. `1.2.3`).
 2. Committe et pousse les changements sur la branche principale :
    ```bash
    git add package.json package-lock.json
-   git commit -m "chore: bump version to 0.0.24"
+    git commit -m "chore: bump version to 1.2.3"
    git push origin main
    ```
 3. Crée un tag sémantique **avec le préfixe `v`** puis pousse-le :
    ```bash
-   git tag v0.0.24
-   git push origin v0.0.24
+   git tag v1.2.3
+   git push origin v1.2.3
    ```
 4. GitHub Actions exécute alors les builds (`windows-latest`, `macos-latest`, `ubuntu-latest`) et publie automatiquement la release grâce à `softprops/action-gh-release`. Suis la progression dans l’onglet **Actions**.
 
 > Besoin de relancer sans nouveau tag ? Utilise le bouton **Run workflow** (événement `workflow_dispatch`) depuis GitHub.
+
+#### Recréer un tag déjà existant
+
+Si le tag `vX.Y.Z` existe déjà (local ou distant), supprime-le avant de le repusher :
+
+```bash
+git tag -d vX.Y.Z
+git push origin :refs/tags/vX.Y.Z
+git tag vX.Y.Z
+git push origin vX.Y.Z
+```
 
 ### Option locale (si besoin ponctuel)
 
