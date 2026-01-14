@@ -160,149 +160,92 @@ async function checkConnection() {
   const savedConfig = await window.electronAPI.loadConfig();
   console.log('[Ryvie][Renderer] Config sauvegardée:', savedConfig ? `ryvieId=${savedConfig.ryvieId}` : 'aucune');
 
-  // Tester la connexion locale
-  console.log('[Ryvie][Renderer] 🔍 Lancement test connexion locale...');
-  const localResult = await window.electronAPI.testLocalConnection();
-  console.log('[Ryvie][Renderer] Résultat test local:', localResult.success ? '✅ SUCCÈS' : '❌ ÉCHEC');
+  // Si pas de config, rediriger vers login
+  if (!savedConfig || (!savedConfig.ryvieId && !savedConfig.setupKey)) {
+    console.log('[Ryvie][Renderer] Aucune configuration trouvée, redirection vers login');
+    window.location.href = 'login.html';
+    return;
+  }
 
-  if (localResult.success) {
-    // Connexion locale réussie
-    const localData = localResult.data;
-    console.log('[Ryvie][Renderer] 🏠 Connexion LOCALE détectée - ryvieId:', localData.ryvieId);
+  // Tester le machine ID local
+  console.log('[Ryvie][Renderer] 🔍 Test machine ID local...');
+  const machineIdResult = await window.electronAPI.testMachineId();
+  console.log('[Ryvie][Renderer] Résultat machine ID:', machineIdResult.success ? '✅ SUCCÈS' : '❌ ÉCHEC');
 
-    // Vérifier si le Ryvie ID a changé
-    if (savedConfig && savedConfig.ryvieId && savedConfig.ryvieId !== localData.ryvieId) {
-      console.warn('[Ryvie][Renderer] ⚠️  RyvieID différent détecté:', savedConfig.ryvieId, '->', localData.ryvieId);
-      // ID différent - afficher l'avertissement
-      pendingNewConfig = {
-        mode: 'local',
-        ryvieId: localData.ryvieId,
-        domains: localData.domains,
-        tunnelHost: localData.tunnelHost,
-        setupKey: localData.setupKey,
-        url: LOCAL_APP_URL
-      };
-      showWarningModal(savedConfig.ryvieId, localData.ryvieId);
-      showConnected(); // Afficher l'ancienne connexion en arrière-plan
-      updateUI(savedConfig);
-    } else {
-      // Même ID ou pas de config précédente - connexion directe
-      console.log('[Ryvie][Renderer] ✅ Passage en mode LOCAL');
-      currentConfig = {
-        mode: 'local',
-        ryvieId: localData.ryvieId,
-        domains: localData.domains,
-        tunnelHost: localData.tunnelHost,
-        setupKey: localData.setupKey,
-        url: LOCAL_APP_URL
-      };
+  if (machineIdResult.success) {
+    // Machine ID local détecté
+    const localMachineId = machineIdResult.ryvieId;
+    console.log('[Ryvie][Renderer] 🏠 Machine ID local détecté:', localMachineId);
+
+    // Vérifier si le Ryvie ID correspond
+    if (savedConfig.ryvieId && savedConfig.ryvieId !== localMachineId) {
+      console.warn('[Ryvie][Renderer] ⚠️  Machine ID différent détecté:', savedConfig.ryvieId, '->', localMachineId);
+      console.log('[Ryvie][Renderer] 🌐 Basculement automatique en mode REMOTE');
       
-      await window.electronAPI.saveConfig(currentConfig);
+      // ID différent - passer automatiquement en mode remote
+      await switchToRemoteMode(savedConfig);
+      return;
+    }
+
+    // Même ID - connexion locale
+    console.log('[Ryvie][Renderer] ✅ Machine ID correspond, connexion locale');
+    
+    // Si on a un JWT token, l'utiliser pour récupérer les domaines
+    if (savedConfig.jwtToken) {
+      console.log('[Ryvie][Renderer] Utilisation du JWT token pour récupérer les domaines');
+      const domainsResult = await window.electronAPI.getDomains(savedConfig.jwtToken);
+      
+      if (domainsResult.success) {
+        const localData = domainsResult.data;
+        console.log('[Ryvie][Renderer] ✅ Domaines récupérés avec JWT');
+        
+        currentConfig = {
+          mode: 'local',
+          ryvieId: localData.ryvieId,
+          domains: localData.domains,
+          tunnelHost: localData.tunnelHost,
+          setupKey: localData.setupKey,
+          url: LOCAL_APP_URL,
+          jwtToken: savedConfig.jwtToken
+        };
+        
+        await window.electronAPI.saveConfig(currentConfig);
+        showConnected();
+        updateUI(currentConfig);
+        
+        // Setup NetBird en arrière-plan
+        if (localData.setupKey) {
+          console.log('[Ryvie][Renderer] Configuration NetBird en arrière-plan');
+          window.electronAPI.setupNetbird(localData.setupKey).then(netbirdResult => {
+            if (!netbirdResult.success) {
+              console.error('[Ryvie][Renderer] Erreur setup NetBird:', netbirdResult.error);
+            } else {
+              console.log('[Ryvie][Renderer] NetBird configuré avec succès');
+            }
+          });
+        }
+      } else {
+        console.warn('[Ryvie][Renderer] Échec récupération domaines avec JWT, utilisation config sauvegardée');
+        currentConfig = savedConfig;
+        currentConfig.mode = 'local';
+        currentConfig.url = LOCAL_APP_URL;
+        showConnected();
+        updateUI(currentConfig);
+      }
+    } else {
+      // Pas de JWT token, utiliser la config sauvegardée
+      console.log('[Ryvie][Renderer] Pas de JWT token, utilisation config sauvegardée');
+      currentConfig = savedConfig;
+      currentConfig.mode = 'local';
+      currentConfig.url = LOCAL_APP_URL;
       showConnected();
       updateUI(currentConfig);
-      
-      // Setup NetBird en arrière-plan APRÈS avoir affiché l'UI et permis l'ouverture
-      if (localData.setupKey) {
-        console.log('[Ryvie][Renderer] Verification et setup NetBird en arriere-plan');
-        // Ne pas bloquer l'UI, lancer en async sans await
-        window.electronAPI.setupNetbird(localData.setupKey).then(netbirdResult => {
-          if (!netbirdResult.success) {
-            console.error('[Ryvie][Renderer] Erreur setup NetBird:', netbirdResult.error);
-          } else {
-            console.log('[Ryvie][Renderer] NetBird configure avec succes');
-          }
-        });
-      }
     }
   } else {
-    // Connexion locale échouée - utiliser le mode public ou manuel
-    console.log('[Ryvie][Renderer] 🌐 Test local KO -> tentative connexion PUBLIQUE/MANUELLE');
-    
-    // Vérifier si c'est une configuration manuelle
-    if (savedConfig && savedConfig.mode === 'manual' && savedConfig.tunnelHost) {
-      console.log('[Ryvie][Renderer] 🔧 Configuration MANUELLE détectée - IP:', savedConfig.tunnelHost);
-      const manualUrl = `http://${savedConfig.tunnelHost}:3000`;
-      
-      // Tester si l'URL manuelle est accessible
-      try {
-        const testResponse = await fetch(manualUrl, { 
-          method: 'GET',
-          signal: AbortSignal.timeout(5000) 
-        });
-        
-        if (!testResponse.ok) {
-          throw new Error(`HTTP ${testResponse.status}`);
-        }
-        
-        console.log('[Ryvie][Renderer] ✅ Connexion MANUELLE réussie');
-        currentConfig = {
-          mode: 'manual',
-          ryvieId: savedConfig.ryvieId,
-          tunnelHost: savedConfig.tunnelHost,
-          setupKey: savedConfig.setupKey,
-          url: manualUrl,
-          domains: savedConfig.domains || {}
-        };
-        showConnected();
-        updateUI(currentConfig);
-      } catch (error) {
-        console.error('[Ryvie][Renderer] ❌ URL manuelle inaccessible:', error.message);
-        showError('La connexion manuelle à votre Ryvie est impossible. Vérifiez l\'IP du tunnel et que NetBird est connecté.');
-        return;
-      }
-    } else if (savedConfig && savedConfig.domains) {
-      // Déterminer l'URL publique selon la présence de domains.app
-      let publicUrl;
-      if (savedConfig.domains.app) {
-        // Cas 1: domains.app existe -> utiliser HTTPS
-        publicUrl = `https://${savedConfig.domains.app}`;
-        console.log('[Ryvie][Renderer] Mode PUBLIC avec domaine app:', publicUrl);
-      } else if (savedConfig.tunnelHost) {
-        // Cas 2: pas de domains.app -> utiliser tunnelHost:3000
-        publicUrl = `http://${savedConfig.tunnelHost}:3000`;
-        console.log('[Ryvie][Renderer] Mode PUBLIC avec tunnelHost:', publicUrl);
-      } else {
-        console.warn('[Ryvie][Renderer] ⚠️  Pas de domains.app ni tunnelHost');
-        showError('Configuration incomplète. Veuillez vous reconnecter en local.');
-        return;
-      }
-      
-      console.log('[Ryvie][Renderer] Test accessibilité URL publique:', publicUrl);
-      
-      // Tester si l'URL publique est accessible
-      try {
-        const testResponse = await fetch(publicUrl, { 
-          method: 'GET',
-          signal: AbortSignal.timeout(5000) 
-        });
-        
-        // Vérifier que la réponse est OK (status 200-299)
-        if (!testResponse.ok) {
-          throw new Error(`HTTP ${testResponse.status}`);
-        }
-        
-        console.log('[Ryvie][Renderer] ✅ Passage en mode PUBLIC');
-        currentConfig = {
-          mode: 'public',
-          ryvieId: savedConfig.ryvieId,
-          domains: savedConfig.domains,
-          tunnelHost: savedConfig.tunnelHost,
-          url: publicUrl
-        };
-        showConnected();
-        updateUI(currentConfig);
-      } catch (error) {
-        // URL publique inaccessible ou erreur réseau
-        console.error('[Ryvie][Renderer] ❌ URL publique inaccessible:', error.message);
-        showError('La connexion à votre Ryvie est impossible, merci de vérifier qu\'il est bien allumé');
-        return; // Sortir sans appeler maybeAutoOpen
-      }
-    } else {
-      // Aucune config sauvegardée et pas de connexion locale
-      console.warn('[Ryvie][Renderer] ⚠️  Aucune config + pas de réseau local');
-      showError('Veuillez vous connecter une première fois à votre Ryvie depuis chez vous (réseau local).');
-      return; // Sortir sans appeler maybeAutoOpen
-    }
+    // Machine ID local non détecté - basculer en mode remote
+    console.log('[Ryvie][Renderer] 🌐 Machine ID local non détecté -> mode REMOTE');
+    await switchToRemoteMode(savedConfig);
+    return;
   }
   
   // Appeler maybeAutoOpen UNE SEULE FOIS à la fin, après avoir configuré currentConfig
@@ -315,12 +258,115 @@ async function checkConnection() {
   }
 }
 
+// Fonction pour basculer en mode remote
+async function switchToRemoteMode(config) {
+  console.log('[Ryvie][Renderer] Basculement en mode REMOTE');
+  
+  // Vérifier si c'est une configuration manuelle
+  if (config && config.mode === 'manual' && config.tunnelHost) {
+    console.log('[Ryvie][Renderer] 🔧 Configuration MANUELLE détectée - IP:', config.tunnelHost);
+    const manualUrl = `http://${config.tunnelHost}:3000`;
+      
+      // Tester si l'URL manuelle est accessible
+      try {
+        const testResponse = await fetch(manualUrl, { 
+          method: 'GET',
+          signal: AbortSignal.timeout(5000) 
+        });
+        
+        if (!testResponse.ok) {
+          throw new Error(`HTTP ${testResponse.status}`);
+        }
+      
+      console.log('[Ryvie][Renderer] ✅ Connexion MANUELLE réussie');
+      currentConfig = {
+        mode: 'manual',
+        ryvieId: config.ryvieId,
+        tunnelHost: config.tunnelHost,
+        setupKey: config.setupKey,
+        url: manualUrl,
+        domains: config.domains || {}
+      };
+      showConnected();
+      updateUI(currentConfig);
+      maybeAutoOpen();
+      if (!isInitialLoad) {
+        setButtonLoading(false);
+      }
+    } catch (error) {
+      console.error('[Ryvie][Renderer] ❌ URL manuelle inaccessible:', error.message);
+      showError('La connexion manuelle à votre Ryvie est impossible. Vérifiez l\'IP du tunnel et que NetBird est connecté.');
+      return;
+    }
+  } else if (config && config.domains) {
+    // Déterminer l'URL publique selon la présence de domains.app
+    let publicUrl;
+    if (config.domains.app) {
+      // Cas 1: domains.app existe -> utiliser HTTPS
+      publicUrl = `https://${config.domains.app}`;
+      console.log('[Ryvie][Renderer] Mode REMOTE avec domaine app:', publicUrl);
+    } else if (config.tunnelHost) {
+      // Cas 2: pas de domains.app -> utiliser tunnelHost:3000
+      publicUrl = `http://${config.tunnelHost}:3000`;
+      console.log('[Ryvie][Renderer] Mode REMOTE avec tunnelHost:', publicUrl);
+    } else {
+      console.warn('[Ryvie][Renderer] ⚠️  Pas de domains.app ni tunnelHost');
+      showError('Configuration incomplète. Veuillez vous reconnecter en local.');
+      return;
+    }
+    
+    console.log('[Ryvie][Renderer] Test accessibilité URL remote:', publicUrl);
+    
+    // Tester si l'URL publique est accessible
+    try {
+      const testResponse = await fetch(publicUrl, { 
+        method: 'GET',
+        signal: AbortSignal.timeout(5000) 
+      });
+      
+      // Vérifier que la réponse est OK (status 200-299)
+      if (!testResponse.ok) {
+        throw new Error(`HTTP ${testResponse.status}`);
+      }
+      
+      console.log('[Ryvie][Renderer] ✅ Passage en mode REMOTE');
+      currentConfig = {
+        mode: 'remote',
+        ryvieId: config.ryvieId,
+        domains: config.domains,
+        tunnelHost: config.tunnelHost,
+        url: publicUrl,
+        jwtToken: config.jwtToken
+      };
+      await window.electronAPI.saveConfig(currentConfig);
+      showConnected();
+      updateUI(currentConfig);
+      maybeAutoOpen();
+      if (!isInitialLoad) {
+        setButtonLoading(false);
+      }
+    } catch (error) {
+      // URL publique inaccessible ou erreur réseau
+      console.error('[Ryvie][Renderer] ❌ URL remote inaccessible:', error.message);
+      showError('La connexion à votre Ryvie est impossible, merci de vérifier qu\'il est bien allumé');
+      return;
+    }
+  } else {
+    // Aucune config sauvegardée et pas de connexion locale
+    console.warn('[Ryvie][Renderer] ⚠️  Aucune config + pas de réseau local');
+    showError('Veuillez vous connecter une première fois à votre Ryvie depuis chez vous (réseau local).');
+    return;
+  }
+}
+
 function updateUI(config) {
   console.log('[Ryvie][Renderer] 🖥️  Mise à jour UI:', config.mode.toUpperCase(), '- ryvieId:', config.ryvieId);
   if (config.mode === 'local') {
     connectionType.innerHTML = '<strong>Mode:</strong> Connexion Locale <span aria-hidden="true">🏠</span>';
   } else if (config.mode === 'manual') {
     connectionType.innerHTML = '<strong>Mode:</strong> Configuration Manuelle <span aria-hidden="true">🔧</span>';
+  } else if (config.mode === 'remote') {
+    connectionType.innerHTML = '<strong>Mode:</strong> Connexion Distante <span aria-hidden="true">🌐</span>';
   } else {
     connectionType.innerHTML = '<strong>Mode:</strong> Connexion Publique <span aria-hidden="true">🌐</span>';
   }
@@ -371,7 +417,7 @@ retryBtn.addEventListener('click', () => {
 
 if (disconnectBtn) {
   disconnectBtn.addEventListener('click', async () => {
-    if (!confirm('Êtes-vous sûr de vouloir vous déconnecter ?\n\nPour vous reconnecter, vous devrez :\n• Être connecté au même WiFi que votre Ryvie, OU\n• Saisir une clé de configuration manuellement')) {
+    if (!confirm('Êtes-vous sûr de vouloir vous déconnecter ?\n\nToutes vos données de connexion seront supprimées.\nVous devrez vous reconnecter avec vos identifiants.')) {
       return;
     }
     
@@ -379,34 +425,29 @@ if (disconnectBtn) {
     disconnectBtn.disabled = true;
     disconnectBtn.classList.add('loading');
     
-    try {
-      const result = await window.electronAPI.disconnect();
+    // Nettoyer les variables locales immédiatement
+    currentConfig = null;
+    pendingNewConfig = null;
+    hasAutoOpened = false;
+    isInitialLoad = false;
+    isRyvieIdVisible = false;
+    
+    // Lancer la déconnexion en arrière-plan sans attendre
+    window.electronAPI.disconnect().then(result => {
       if (result.success) {
-        console.log('[Ryvie][Renderer] Déconnexion réussie');
-        currentConfig = null;
-        pendingNewConfig = null;
-        hasAutoOpened = false;
-        isInitialLoad = false;
-        isRyvieIdVisible = false;
-        
-        // Réactiver le bouton de déconnexion
-        disconnectBtn.disabled = false;
-        disconnectBtn.classList.remove('loading');
-        
-        // Afficher l'écran de déconnexion avec les options Retry/Saisir Setup Key
-        showDisconnected();
+        console.log('[Ryvie][Renderer] Déconnexion en arrière-plan réussie');
       } else {
-        console.error('[Ryvie][Renderer] Erreur déconnexion:', result.error);
-        alert('Erreur lors de la déconnexion: ' + result.error);
-        disconnectBtn.disabled = false;
-        disconnectBtn.classList.remove('loading');
+        console.error('[Ryvie][Renderer] Erreur déconnexion en arrière-plan:', result.error);
       }
-    } catch (error) {
-      console.error('[Ryvie][Renderer] Erreur déconnexion:', error);
-      alert('Erreur lors de la déconnexion');
-      disconnectBtn.disabled = false;
-      disconnectBtn.classList.remove('loading');
-    }
+    }).catch(error => {
+      console.error('[Ryvie][Renderer] Erreur déconnexion en arrière-plan:', error);
+    });
+    
+    // Rediriger immédiatement vers la page de connexion sans attendre
+    console.log('[Ryvie][Renderer] Redirection immédiate vers la page de connexion');
+    setTimeout(() => {
+      window.location.replace('login.html');
+    }, 100);
   });
 }
 

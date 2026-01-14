@@ -8,7 +8,9 @@ const { exec } = require('child_process');
 app.disableHardwareAcceleration();
 
 const CONFIG_FILE = path.join(app.getPath('userData'), 'ryvie-config.json');
-const LOCAL_API_URL = 'http://ryvie.local:3002/api/settings/ryvie-domains';
+const LOCAL_MACHINE_ID_URL = 'http://ryvie.local:3002/api/machine-id';
+const LOCAL_AUTH_URL = 'http://ryvie.local:3002/api/authenticate';
+const LOCAL_DOMAINS_URL = 'http://ryvie.local:3002/api/settings/ryvie-domains';
 const LOCAL_APP_URL = 'http://ryvie.local';
 
 // Flags de plateforme
@@ -76,7 +78,22 @@ function createMain() {
     icon: path.join(__dirname, '../../build/icons/win/icon.ico')
   });
 
-  mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
+  // Vérifier si une config existe pour déterminer quelle page charger
+  let hasConfig = false;
+  try {
+    if (fs.existsSync(CONFIG_FILE)) {
+      const data = fs.readFileSync(CONFIG_FILE, 'utf8');
+      const config = JSON.parse(data);
+      hasConfig = config && (config.ryvieId || config.setupKey);
+    }
+  } catch (error) {
+    console.error('[Ryvie][Main] Erreur lecture config:', error);
+  }
+
+  // Charger la page appropriée
+  const pageToLoad = hasConfig ? 'index.html' : 'login.html';
+  console.log('[Ryvie][Main] Chargement de la page:', pageToLoad);
+  mainWindow.loadFile(path.join(__dirname, '../renderer/' + pageToLoad));
   mainWindow.setMenuBarVisibility(false);
 
   mainWindow.once('ready-to-show', () => {
@@ -444,13 +461,136 @@ ipcMain.handle('save-config', async (event, config) => {
   }
 });
 
+// Test machine ID locale
+ipcMain.handle('test-machine-id', async () => {
+  console.log('[Ryvie][Main] Test machine ID:', LOCAL_MACHINE_ID_URL);
+  
+  return new Promise((resolve) => {
+    const curlCommand = `curl -s -m 2 "${LOCAL_MACHINE_ID_URL}"`;
+    
+    exec(curlCommand, { timeout: 3000, windowsHide: true }, (error, stdout, stderr) => {
+      if (error) {
+        console.warn('[Ryvie][Main] Erreur curl machine ID:', error.code || error.message);
+        resolve({ success: false });
+        return;
+      }
+
+      try {
+        const data = JSON.parse(stdout);
+        console.log('[Ryvie][Main] Machine ID recu:', data.ryvieId);
+        
+        if (data && data.success && data.ryvieId) {
+          resolve({
+            success: true,
+            ryvieId: data.ryvieId
+          });
+        } else {
+          console.warn('[Ryvie][Main] Donnees machine ID invalides');
+          resolve({ success: false });
+        }
+      } catch (parseError) {
+        console.error('[Ryvie][Main] Erreur parsing JSON machine ID:', parseError.message);
+        resolve({ success: false });
+      }
+    });
+  });
+});
+
+// Authentification JWT
+ipcMain.handle('authenticate', async (event, credentials) => {
+  console.log('[Ryvie][Main] Authentification avec uid:', credentials.uid);
+  
+  return new Promise((resolve) => {
+    const authData = JSON.stringify({
+      uid: credentials.uid,
+      password: credentials.password
+    });
+    
+    // Échapper les guillemets pour PowerShell
+    const escapedData = authData.replace(/"/g, '\\"');
+    const curlCommand = `curl -s -m 5 -X POST "${LOCAL_AUTH_URL}" -H "Content-Type: application/json" -d "${escapedData}"`;
+    
+    console.log('[Ryvie][Main] Commande curl:', curlCommand);
+    
+    exec(curlCommand, { timeout: 6000, windowsHide: true }, (error, stdout, stderr) => {
+      if (error) {
+        console.error('[Ryvie][Main] Erreur authentification:', error.message);
+        resolve({ success: false, error: 'Erreur de connexion' });
+        return;
+      }
+
+      console.log('[Ryvie][Main] Reponse brute:', stdout.substring(0, 200));
+
+      try {
+        const data = JSON.parse(stdout);
+        
+        if (data && data.token) {
+          console.log('[Ryvie][Main] Authentification reussie');
+          resolve({
+            success: true,
+            token: data.token
+          });
+        } else {
+          console.warn('[Ryvie][Main] Authentification echouee');
+          resolve({ success: false, error: 'Identifiants incorrects' });
+        }
+      } catch (parseError) {
+        console.error('[Ryvie][Main] Erreur parsing reponse auth:', parseError.message);
+        console.error('[Ryvie][Main] Stdout complet:', stdout);
+        resolve({ success: false, error: 'Erreur serveur' });
+      }
+    });
+  });
+});
+
+// Recuperer les domaines avec JWT
+ipcMain.handle('get-domains', async (event, token) => {
+  console.log('[Ryvie][Main] Recuperation domaines avec JWT');
+  
+  return new Promise((resolve) => {
+    const curlCommand = `curl -s -m 5 "${LOCAL_DOMAINS_URL}" -H "Authorization: Bearer ${token}"`;
+    
+    exec(curlCommand, { timeout: 6000, windowsHide: true }, (error, stdout, stderr) => {
+      if (error) {
+        console.error('[Ryvie][Main] Erreur recuperation domaines:', error.message);
+        resolve({ success: false });
+        return;
+      }
+
+      try {
+        const data = JSON.parse(stdout);
+        
+        if (data && data.success && data.domains) {
+          console.log('[Ryvie][Main] Domaines recuperes avec succes');
+          resolve({
+            success: true,
+            data: {
+              id: data.id,
+              ryvieId: data.ryvieId,
+              domains: data.domains,
+              tunnelHost: data.tunnelHost,
+              setupKey: data.setupKey
+            }
+          });
+        } else {
+          console.warn('[Ryvie][Main] Donnees domaines invalides');
+          resolve({ success: false });
+        }
+      } catch (parseError) {
+        console.error('[Ryvie][Main] Erreur parsing domaines:', parseError.message);
+        resolve({ success: false });
+      }
+    });
+  });
+});
+
 // Test connexion locale via curl PowerShell (seul moyen de résoudre ryvie.local sur Windows)
 ipcMain.handle('test-local-connection', async () => {
-  console.log('[Ryvie][Main] Test connexion locale:', LOCAL_API_URL);
+  console.log('[Ryvie][Main] Test connexion locale (deprecated):', LOCAL_DOMAINS_URL);
   
   return new Promise((resolve) => {
     // Utiliser curl PowerShell qui résout correctement ryvie.local via mDNS
-    const curlCommand = `curl -s -m 5 "${LOCAL_API_URL}"`;
+    const curlCommand = `curl -s -m 5 "${LOCAL_DOMAINS_URL}"`;
     
     exec(curlCommand, { timeout: 6000, windowsHide: true }, (error, stdout, stderr) => {
       if (error) {

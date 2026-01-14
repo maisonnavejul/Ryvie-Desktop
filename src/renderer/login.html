@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Connexion - Ryvie Desktop</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <img src="../../ryvielogo0.png" alt="Ryvie Logo" class="logo" />
+      <h1>Connexion à Ryvie</h1>
+    </div>
+
+    <div id="login-section" class="status-section section visible">
+      <div style="margin: 12px auto; max-width: 50%;">
+        <div style="margin-bottom: 10px;">
+          <label for="uid-input" style="display: block; text-align: left; margin-bottom: 3px; color: #475569; font-size: 11px; font-weight: 600;">Utilisateur</label>
+          <input type="text" id="uid-input" placeholder="Identifiant" autocomplete="off" style="width: 100%; padding: 8px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 12px; font-family: 'Inter', sans-serif; transition: border-color 0.2s;" />
+        </div>
+        <div style="margin-bottom: 10px;">
+          <label for="password-input" style="display: block; text-align: left; margin-bottom: 3px; color: #475569; font-size: 11px; font-weight: 600;">Mot de passe</label>
+          <input type="password" id="password-input" placeholder="Mot de passe" autocomplete="off" style="width: 100%; padding: 8px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 12px; font-family: 'Inter', sans-serif; transition: border-color 0.2s;" />
+        </div>
+        <p id="login-error" style="color: #ef4444; font-size: 11px; margin-top: 6px; display: none;"></p>
+      </div>
+      
+      <div style="display: flex; gap: 8px; margin-top: 12px;">
+        <button id="login-btn" class="btn btn-primary" style="flex: 1; font-size: 12px;">
+          <span>Se connecter</span>
+        </button>
+        
+        <button id="manual-setup-btn-login" class="btn btn-secondary" style="flex: 1; font-size: 12px;">
+          <span>Configuration manuelle</span>
+        </button>
+      </div>
+    </div>
+
+    <div id="manual-setup-modal" class="modal hidden" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; width: 100%; height: 100%; background: white; z-index: 99999; overflow: hidden; margin: 0; padding: 0; border-radius: 24px;">
+      <div style="width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box;">
+        <div style="width: 100%; max-width: 500px;">
+          <div style="width: 50px; height: 50px; margin: 0 auto 16px; background: linear-gradient(135deg, #667eea, #764ba2); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <h2 style="font-size: 22px; margin: 0 0 12px; text-align: center; color: #0f172a;">Configuration Manuelle</h2>
+          <p style="margin-bottom: 20px; color: #64748b; font-size: 13px; text-align: center;">Entrez votre setup key et l'IP du tunnel pour vous connecter manuellement.</p>
+          <div style="margin: 16px 0;">
+            <div style="margin-bottom: 12px;">
+              <label for="manual-tunnel-ip-input" style="display: block; text-align: left; margin-bottom: 4px; color: #475569; font-size: 12px; font-weight: 600;">IP du Tunnel</label>
+              <input type="text" id="manual-tunnel-ip-input" placeholder="Ex: 100.64.0.1" style="width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 13px; font-family: 'Inter', sans-serif; transition: border-color 0.2s; box-sizing: border-box;" />
+            </div>
+            <div style="margin-bottom: 12px;">
+              <label for="manual-setup-key-input" style="display: block; text-align: left; margin-bottom: 4px; color: #475569; font-size: 12px; font-weight: 600;">Setup Key</label>
+              <input type="text" id="manual-setup-key-input" placeholder="Collez votre setup key ici" style="width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 13px; font-family: 'Inter', sans-serif; transition: border-color 0.2s; box-sizing: border-box;" />
+            </div>
+            <p id="manual-setup-error" style="color: #ef4444; font-size: 12px; margin-top: 6px; display: none;"></p>
+          </div>
+          <div style="display: flex; gap: 10px; margin-top: 16px;">
+            <button id="manual-setup-confirm-btn" class="btn btn-primary" style="flex: 1; font-size: 13px;"><span>Confirmer</span></button>
+            <button id="manual-setup-cancel-btn" class="btn btn-secondary" style="flex: 1; font-size: 13px;"><span>Annuler</span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="login.js"></script>
+</body>
+</html>
