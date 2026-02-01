@@ -8,8 +8,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   authenticate: (credentials) => ipcRenderer.invoke('authenticate', credentials),
   getDomains: (token) => ipcRenderer.invoke('get-domains', token),
   openUrl: (url) => ipcRenderer.invoke('open-url', url),
-  setupNetbird: (setupKey) => ipcRenderer.invoke('setup-netbird', setupKey),
+  setupNetbird: (setupKey, tunnelHost) => ipcRenderer.invoke('setup-netbird', setupKey, tunnelHost),
+  netbirdStatus: () => ipcRenderer.invoke('netbird-status'),
   disconnect: () => ipcRenderer.invoke('disconnect'),
+  onNetbirdStatus: (callback) => ipcRenderer.on('netbird-status-update', (event, status) => callback(status)),
   startUpdate: () => ipcRenderer.invoke('start-update'),
   skipUpdate: () => ipcRenderer.invoke('skip-update'),
   

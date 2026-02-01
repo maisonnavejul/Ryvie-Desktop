@@ -36,6 +36,13 @@
       </div>
       <div class="connection-info">
         <p id="connection-type"></p>
+        <p id="vpn-status" style="display: flex; align-items: center; gap: 8px; margin: 8px 0;">
+          <strong>Accès distant:</strong>
+          <span id="vpn-status-badge" style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 12px; font-size: 13px; font-weight: 500;">
+            <span id="vpn-status-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #94a3b8;"></span>
+            <span id="vpn-status-text">Vérification...</span>
+          </span>
+        </p>
         <p id="ryvie-id" class="ryvie-id-row">
           <strong>Ryvie ID:</strong>
           <span id="ryvie-id-value" class="ryvie-id-masked">••••••••••••••••••••••••</span>

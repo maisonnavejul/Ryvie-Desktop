@@ -348,9 +348,33 @@ function installNetbird() {
           }, 5000);
         });
       });
+    } else if (IS_MAC) {
+      // Installation macOS avec popup graphique pour le mot de passe admin
+      console.log('[Ryvie][Main] Installation de NetBird (macOS)...');
+      
+      // Utiliser osascript pour demander le mot de passe avec une popup graphique
+      // puis exécuter le script d'installation avec sudo
+      const installCmd = `osascript -e 'do shell script "curl -fsSL ${NETBIRD_INSTALLER_URL} | sh" with administrator privileges'`;
+      
+      exec(installCmd, { timeout: 120000 }, (installError, stdout, stderr) => {
+        if (installError) {
+          console.error('[Ryvie][Main] Erreur installation NetBird:', installError.message);
+          if (stderr) console.error('[Ryvie][Main] Stderr:', stderr);
+          resolve({ success: false, error: 'Installation annulée ou échouée' });
+          return;
+        }
+        
+        console.log('[Ryvie][Main] NetBird installé avec succès');
+        if (stdout) console.log('[Ryvie][Main] Stdout:', stdout.substring(0, 200));
+        
+        // Attendre un peu que l'installation se finalise
+        setTimeout(() => {
+          resolve({ success: true });
+        }, 3000);
+      });
     } else {
-      // Installation Linux/macOS via script officiel
-      console.log(`[Ryvie][Main] Installation de NetBird (${IS_MAC ? 'macOS' : 'Linux'})...`);
+      // Installation Linux via script officiel
+      console.log('[Ryvie][Main] Installation de NetBird (Linux)...');
       
       // Utiliser le script d'installation officiel
       const installCmd = `curl -fsSL ${NETBIRD_INSTALLER_URL} | sh`;
@@ -434,6 +458,123 @@ function netbirdConnect(setupKey) {
       console.log('[Ryvie][Main] NetBird connecte avec succes');
       if (stdout) console.log('[Ryvie][Main] Stdout:', stdout.substring(0, 200));
       resolve({ success: true });
+    });
+  });
+}
+
+// Attend que les peers NetBird se connectent (avec timeout)
+async function waitForNetbirdPeers(maxWaitSeconds = 15) {
+  console.log('[Ryvie][Main] Attente de la connexion des peers NetBird...');
+  const startTime = Date.now();
+  const maxWaitMs = maxWaitSeconds * 1000;
+  
+  // Envoyer un événement initial "connexion en cours"
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('netbird-status-update', {
+      status: 'connecting',
+      message: 'Connexion en cours...',
+      peersCount: 0
+    });
+  }
+  
+  while (Date.now() - startTime < maxWaitMs) {
+    const status = await netbirdStatus();
+    
+    // Envoyer une mise à jour de statut au renderer
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('netbird-status-update', {
+        status: 'connecting',
+        message: 'Connexion en cours...',
+        peersCount: status.peersCount || 0,
+        connected: status.connected
+      });
+    }
+    
+    if (status.connected && status.peersCount > 0) {
+      console.log(`[Ryvie][Main] ✅ Peers connectés: ${status.peersCount}`);
+      
+      // Envoyer un événement de succès
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('netbird-status-update', {
+          status: 'connected',
+          message: 'Connecté',
+          peersCount: status.peersCount
+        });
+      }
+      
+      return { success: true, peersCount: status.peersCount };
+    }
+    
+    // Attendre 1 seconde avant de réessayer
+    await new Promise(resolve => setTimeout(resolve, 1000));
+  }
+  
+  console.warn('[Ryvie][Main] ⚠️ Timeout: aucun peer connecté après', maxWaitSeconds, 'secondes');
+  
+  // Envoyer un événement d'échec
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('netbird-status-update', {
+      status: 'timeout',
+      message: 'Timeout',
+      peersCount: 0
+    });
+  }
+  
+  return { success: false, error: 'Aucun peer connecté' };
+}
+
+// Verifie le statut de connexion NetBird
+function netbirdStatus() {
+  return new Promise((resolve) => {
+    if (!IS_WINDOWS && !IS_MAC && !IS_LINUX) {
+      resolve({ success: false, connected: false, error: 'Plateforme non supportee' });
+      return;
+    }
+
+    if (!isNetbirdInstalled()) {
+      resolve({ success: true, connected: false, installed: false });
+      return;
+    }
+    
+    const statusCmd = `"${NETBIRD_PATH}" status`;
+    
+    exec(statusCmd, { timeout: 5000, windowsHide: true }, (error, stdout, stderr) => {
+      if (error) {
+        // Si erreur, considérer comme déconnecté
+        console.log('[Ryvie][Main] Erreur netbird status:', error.message);
+        resolve({ success: true, connected: false, installed: true });
+        return;
+      }
+      
+      // Analyser la sortie pour déterminer si connecté
+      // Vérifier Management et Signal
+      const managementLine = stdout.split('\n').find(line => line.toLowerCase().includes('management:'));
+      const signalLine = stdout.split('\n').find(line => line.toLowerCase().includes('signal:'));
+      
+      const managementConnected = managementLine && 
+        !managementLine.toLowerCase().includes('disconnected') &&
+        managementLine.toLowerCase().includes('connected');
+      const signalConnected = signalLine && 
+        !signalLine.toLowerCase().includes('disconnected') &&
+        signalLine.toLowerCase().includes('connected');
+      
+      // Vérifier aussi s'il y a des peers connectés
+      // Format: "Peers count: X/Y Connected" où X est le nombre de peers connectés
+      const peersMatch = stdout.match(/peers count:\s*(\d+)\/\d+/i);
+      const peersCount = peersMatch ? parseInt(peersMatch[1], 10) : 0;
+      
+      console.log('[Ryvie][Main] NetBird status - Management:', managementConnected, '- Signal:', signalConnected, '- Peers:', peersCount);
+      
+      // Considérer comme vraiment connecté seulement si Management ET Signal connectés ET au moins 1 peer
+      const reallyConnected = managementConnected && signalConnected && peersCount > 0;
+      
+      resolve({ 
+        success: true, 
+        connected: reallyConnected,
+        installed: true,
+        peersCount: peersCount,
+        output: stdout.substring(0, 300)
+      });
     });
   });
 }
@@ -682,28 +823,180 @@ ipcMain.handle('check-for-updates', async () => {
 });
 
 // IPC NETBIRD
-ipcMain.handle('setup-netbird', async (event, setupKey) => {
+ipcMain.handle('setup-netbird', async (event, setupKey, tunnelHost) => {
   try {
     console.log('[Ryvie][Main] Setup NetBird demande');
+    console.log('[Ryvie][Main] setupKey:', setupKey ? 'présent' : 'absent');
+    console.log('[Ryvie][Main] tunnelHost:', tunnelHost || 'non fourni');
+    
+    // Vérifier d'abord si NetBird est déjà connecté
+    if (isNetbirdInstalled()) {
+      const currentStatus = await netbirdStatus();
+      console.log('[Ryvie][Main] Statut NetBird actuel:', currentStatus.connected ? 'connecté' : 'déconnecté');
+      console.log('[Ryvie][Main] Peers count:', currentStatus.peersCount || 0);
+      
+      if (currentStatus.connected) {
+        // NetBird déjà connecté, vérifier si le tunnel fonctionne
+        if (tunnelHost) {
+          const statusUrl = `http://${tunnelHost}:3002/status`;
+          console.log('[Ryvie][Main] Verification tunnel:', statusUrl);
+          
+          // Envoyer un événement de vérification
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('netbird-status-update', {
+              status: 'connecting',
+              message: 'Connexion en cours...',
+              peersCount: currentStatus.peersCount || 0
+            });
+          }
+          
+          const checkTunnel = () => {
+            return new Promise((resolve) => {
+              const curlCommand = `curl -s -m 3 "${statusUrl}"`;
+              
+              exec(curlCommand, { timeout: 4000, windowsHide: true }, (error, stdout, stderr) => {
+                if (error) {
+                  console.log('[Ryvie][Main] ❌ Tunnel non accessible:', error.message);
+                  resolve({ accessible: false });
+                  return;
+                }
+                
+                try {
+                  const data = JSON.parse(stdout);
+                  if (data && data.message === 'Server is running') {
+                    console.log('[Ryvie][Main] ✅ Tunnel déjà accessible, pas besoin de reconfigurer NetBird');
+                    resolve({ accessible: true });
+                  } else {
+                    console.log('[Ryvie][Main] ❌ Réponse tunnel invalide');
+                    resolve({ accessible: false });
+                  }
+                } catch (parseError) {
+                  console.log('[Ryvie][Main] ❌ Erreur parsing status tunnel:', parseError.message);
+                  resolve({ accessible: false });
+                }
+              });
+            });
+          };
+          
+          const tunnelCheck = await checkTunnel();
+          if (tunnelCheck.accessible) {
+            // Tunnel déjà fonctionnel, pas besoin de reconfigurer
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('netbird-status-update', {
+                status: 'connected',
+                message: 'Actif',
+                peersCount: currentStatus.peersCount || 0
+              });
+            }
+            return { success: true, alreadyConnected: true };
+          } else {
+            console.log('[Ryvie][Main] ⚠️ Tunnel non accessible malgré NetBird connecté, reconfiguration nécessaire');
+          }
+        } else {
+          // Pas de tunnelHost fourni, mais NetBird est connecté
+          // On ne peut pas vérifier le tunnel sans l'IP, donc on considère que c'est OK
+          console.log('[Ryvie][Main] ⚠️ NetBird connecté mais tunnelHost non fourni, impossible de vérifier le tunnel');
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('netbird-status-update', {
+              status: 'connected',
+              message: 'Actif',
+              peersCount: currentStatus.peersCount || 0
+            });
+          }
+          return { success: true, alreadyConnected: true };
+        }
+      } else {
+        console.log('[Ryvie][Main] ❌ NetBird non connecté ou aucun peer accessible');
+      }
+    }
     
     // Verifier si NetBird est installe
     if (!isNetbirdInstalled()) {
       console.log('[Ryvie][Main] NetBird non installe, installation en cours...');
+      
+      // Envoyer un événement d'installation
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('netbird-status-update', {
+          status: 'connecting',
+          message: 'Connexion en cours...',
+          peersCount: 0
+        });
+      }
+      
       const installResult = await installNetbird();
       if (!installResult.success) {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('netbird-status-update', {
+            status: 'error',
+            message: 'Erreur d\'installation',
+            peersCount: 0
+          });
+        }
         return { success: false, error: 'Installation NetBird echouee' };
       }
     }
     
     // Logout au cas ou
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('netbird-status-update', {
+        status: 'connecting',
+        message: 'Connexion en cours...',
+        peersCount: 0
+      });
+    }
     await netbirdLogout();
     
     // Connexion avec la setup key
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('netbird-status-update', {
+        status: 'connecting',
+        message: 'Connexion en cours...',
+        peersCount: 0
+      });
+    }
     const connectResult = await netbirdConnect(setupKey);
-    return connectResult;
+    if (!connectResult.success) {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('netbird-status-update', {
+          status: 'error',
+          message: 'Erreur de connexion',
+          peersCount: 0
+        });
+      }
+      return connectResult;
+    }
+    
+    // Attendre que les peers se connectent
+    const peersResult = await waitForNetbirdPeers(15);
+    if (!peersResult.success) {
+      console.warn('[Ryvie][Main] ⚠️ NetBird connecté mais aucun peer accessible');
+      // On retourne quand même success car NetBird est connecté
+      // mais on ajoute un warning
+      return { success: true, warning: 'Aucun peer connecté' };
+    }
+    
+    return { success: true, peersCount: peersResult.peersCount };
   } catch (error) {
     console.error('[Ryvie][Main] Erreur setup NetBird:', error);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('netbird-status-update', {
+        status: 'error',
+        message: 'Erreur',
+        peersCount: 0
+      });
+    }
     return { success: false, error: error.message };
+  }
+});
+
+// IPC NETBIRD STATUS
+ipcMain.handle('netbird-status', async () => {
+  try {
+    const status = await netbirdStatus();
+    return status;
+  } catch (error) {
+    console.error('[Ryvie][Main] Erreur statut NetBird:', error);
+    return { success: false, connected: false, error: error.message };
   }
 });
 

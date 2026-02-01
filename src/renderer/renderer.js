@@ -6,6 +6,8 @@ let hasAutoOpened = false; // évite les ouvertures multiples
 let autoOpenTimer = null;  // timer de délai pour l'ouverture auto
 let isInitialLoad = true;  // true uniquement au premier chargement de l'app
 let isRyvieIdVisible = false;
+let vpnStatusInterval = null; // timer pour vérifier le statut VPN périodiquement
+let isNetbirdSetupInProgress = false; // true pendant le setup NetBird
 
 // Éléments DOM
 const loadingSection = document.getElementById('loading');
@@ -15,6 +17,9 @@ const errorSection = document.getElementById('error');
 const warningModal = document.getElementById('warning-modal');
 
 const connectionType = document.getElementById('connection-type');
+const vpnStatusBadge = document.getElementById('vpn-status-badge');
+const vpnStatusDot = document.getElementById('vpn-status-dot');
+const vpnStatusText = document.getElementById('vpn-status-text');
 const ryvieIdEl = document.getElementById('ryvie-id');
 const ryvieIdValueEl = document.getElementById('ryvie-id-value');
 const showRyvieIdBtn = document.getElementById('show-ryvie-id-btn');
@@ -198,6 +203,8 @@ async function checkConnection() {
       if (domainsResult.success) {
         const localData = domainsResult.data;
         console.log('[Ryvie][Renderer] ✅ Domaines récupérés avec JWT');
+        console.log('[Ryvie][Renderer] localData.tunnelHost:', localData.tunnelHost);
+        console.log('[Ryvie][Renderer] localData.setupKey:', localData.setupKey ? 'présent' : 'absent');
         
         currentConfig = {
           mode: 'local',
@@ -216,12 +223,27 @@ async function checkConnection() {
         // Setup NetBird en arrière-plan
         if (localData.setupKey) {
           console.log('[Ryvie][Renderer] Configuration NetBird en arrière-plan');
-          window.electronAPI.setupNetbird(localData.setupKey).then(netbirdResult => {
+          
+          // Marquer le setup comme en cours
+          isNetbirdSetupInProgress = true;
+          
+          // Afficher "Connexion en cours" pendant la configuration
+          setVpnStatusConnecting();
+          
+          window.electronAPI.setupNetbird(localData.setupKey, localData.tunnelHost).then(netbirdResult => {
+            // Marquer le setup comme terminé
+            isNetbirdSetupInProgress = false;
+            
             if (!netbirdResult.success) {
               console.error('[Ryvie][Renderer] Erreur setup NetBird:', netbirdResult.error);
+            } else if (netbirdResult.alreadyConnected) {
+              console.log('[Ryvie][Renderer] NetBird déjà connecté, tunnel accessible');
             } else {
               console.log('[Ryvie][Renderer] NetBird configuré avec succès');
             }
+            
+            // Mettre à jour le statut après la configuration
+            updateVpnStatus();
           });
         }
       } else {
@@ -359,6 +381,77 @@ async function switchToRemoteMode(config) {
   }
 }
 
+// Fonction pour mettre à jour le statut d'accès distant
+async function updateVpnStatus() {
+  if (!vpnStatusBadge || !vpnStatusDot || !vpnStatusText) return;
+  
+  // Ne pas mettre à jour si le setup NetBird est en cours
+  if (isNetbirdSetupInProgress) {
+    console.log('[Ryvie][Renderer] Setup NetBird en cours, skip updateVpnStatus');
+    return;
+  }
+  
+  try {
+    const status = await window.electronAPI.netbirdStatus();
+    
+    if (!status.installed) {
+      // NetBird non installé
+      vpnStatusDot.style.background = '#94a3b8';
+      vpnStatusText.textContent = 'Inactif';
+      vpnStatusBadge.style.background = 'rgba(148, 163, 184, 0.1)';
+      vpnStatusBadge.style.color = '#64748b';
+    } else if (status.connected) {
+      // Accès distant actif
+      vpnStatusDot.style.background = '#10b981';
+      vpnStatusText.textContent = 'Actif';
+      vpnStatusBadge.style.background = 'rgba(16, 185, 129, 0.1)';
+      vpnStatusBadge.style.color = '#059669';
+    } else {
+      // Accès distant inactif
+      vpnStatusDot.style.background = '#f59e0b';
+      vpnStatusText.textContent = 'Inactif';
+      vpnStatusBadge.style.background = 'rgba(245, 158, 11, 0.1)';
+      vpnStatusBadge.style.color = '#d97706';
+    }
+  } catch (error) {
+    console.error('[Ryvie][Renderer] Erreur vérification statut accès distant:', error);
+    vpnStatusDot.style.background = '#94a3b8';
+    vpnStatusText.textContent = 'Erreur';
+    vpnStatusBadge.style.background = 'rgba(148, 163, 184, 0.1)';
+    vpnStatusBadge.style.color = '#64748b';
+  }
+}
+
+// Fonction pour afficher l'état "Connexion en cours"
+function setVpnStatusConnecting() {
+  if (!vpnStatusBadge || !vpnStatusDot || !vpnStatusText) return;
+  
+  vpnStatusDot.style.background = '#3b82f6';
+  vpnStatusText.textContent = 'Connexion en cours...';
+  vpnStatusBadge.style.background = 'rgba(59, 130, 246, 0.1)';
+  vpnStatusBadge.style.color = '#2563eb';
+}
+
+// Démarrer la vérification périodique du statut VPN
+function startVpnStatusCheck() {
+  // Vérifier immédiatement
+  updateVpnStatus();
+  
+  // Puis vérifier toutes les 10 secondes
+  if (vpnStatusInterval) {
+    clearInterval(vpnStatusInterval);
+  }
+  vpnStatusInterval = setInterval(updateVpnStatus, 10000);
+}
+
+// Arrêter la vérification périodique du statut VPN
+function stopVpnStatusCheck() {
+  if (vpnStatusInterval) {
+    clearInterval(vpnStatusInterval);
+    vpnStatusInterval = null;
+  }
+}
+
 function updateUI(config) {
   console.log('[Ryvie][Renderer] 🖥️  Mise à jour UI:', config.mode.toUpperCase(), '- ryvieId:', config.ryvieId);
   if (config.mode === 'local') {
@@ -383,6 +476,9 @@ function updateUI(config) {
     showRyvieIdBtn.title = isRyvieIdVisible ? 'Masquer' : 'Afficher';
     showRyvieIdBtn.style.display = config.ryvieId ? 'inline-flex' : 'none';
   }
+  
+  // Démarrer la vérification du statut VPN
+  startVpnStatusCheck();
 }
 
 // Gestionnaires d'événements
@@ -424,6 +520,9 @@ if (disconnectBtn) {
     console.log('[Ryvie][Renderer] Déconnexion demandée...');
     disconnectBtn.disabled = true;
     disconnectBtn.classList.add('loading');
+    
+    // Arrêter la vérification VPN
+    stopVpnStatusCheck();
     
     // Nettoyer les variables locales immédiatement
     currentConfig = null;
@@ -469,14 +568,24 @@ acceptBtn.addEventListener('click', async () => {
     // Changement de Ryvie -> Setup NetBird avec la nouvelle setupKey
     if (pendingNewConfig.setupKey) {
       console.log('[Ryvie][Renderer] Changement de Ryvie -> Setup NetBird');
-      const netbirdResult = await window.electronAPI.setupNetbird(pendingNewConfig.setupKey);
+      isNetbirdSetupInProgress = true;
+      setVpnStatusConnecting();
+      
+      const netbirdResult = await window.electronAPI.setupNetbird(pendingNewConfig.setupKey, pendingNewConfig.tunnelHost);
+      isNetbirdSetupInProgress = false;
+      
       if (!netbirdResult.success) {
         console.error('[Ryvie][Renderer] Erreur setup NetBird:', netbirdResult.error);
         showError('Erreur lors de la configuration du tunnel NetBird');
         hideWarningModal();
         return;
       }
-      console.log('[Ryvie][Renderer] NetBird reconfigure avec succes');
+      if (netbirdResult.alreadyConnected) {
+        console.log('[Ryvie][Renderer] NetBird déjà connecté, tunnel accessible');
+      } else {
+        console.log('[Ryvie][Renderer] NetBird reconfigure avec succes');
+      }
+      updateVpnStatus();
     }
     
     currentConfig = pendingNewConfig;
@@ -562,8 +671,15 @@ manualSetupConfirmBtn.addEventListener('click', async () => {
   try {
     console.log('[Ryvie][Renderer] Configuration manuelle NetBird avec setup key et IP:', tunnelIp);
     
-    // Appeler le setup NetBird
-    const netbirdResult = await window.electronAPI.setupNetbird(setupKey);
+    // Marquer le setup comme en cours
+    isNetbirdSetupInProgress = true;
+    setVpnStatusConnecting();
+    
+    // Appeler le setup NetBird avec l'IP du tunnel
+    const netbirdResult = await window.electronAPI.setupNetbird(setupKey, tunnelIp);
+    
+    // Marquer le setup comme terminé
+    isNetbirdSetupInProgress = false;
     
     if (!netbirdResult.success) {
       console.error('[Ryvie][Renderer] Erreur setup NetBird:', netbirdResult.error);
@@ -747,6 +863,38 @@ if (updateModal) {
   updateModal.addEventListener('click', (e) => {
     if (e.target === updateModal) {
       hideUpdateModal();
+    }
+  });
+}
+
+// Écouter les mises à jour de statut NetBird en temps réel
+if (window.electronAPI && window.electronAPI.onNetbirdStatus) {
+  window.electronAPI.onNetbirdStatus((statusUpdate) => {
+    console.log('[Ryvie][Renderer] Mise à jour statut NetBird:', statusUpdate);
+    
+    if (!vpnStatusBadge || !vpnStatusDot || !vpnStatusText) return;
+    
+    if (statusUpdate.status === 'connecting') {
+      // Connexion en cours
+      isNetbirdSetupInProgress = true;
+      vpnStatusDot.style.background = '#3b82f6';
+      vpnStatusText.textContent = statusUpdate.message || 'Connexion en cours...';
+      vpnStatusBadge.style.background = 'rgba(59, 130, 246, 0.1)';
+      vpnStatusBadge.style.color = '#2563eb';
+    } else if (statusUpdate.status === 'connected') {
+      // Connecté avec succès
+      isNetbirdSetupInProgress = false;
+      vpnStatusDot.style.background = '#10b981';
+      vpnStatusText.textContent = 'Actif';
+      vpnStatusBadge.style.background = 'rgba(16, 185, 129, 0.1)';
+      vpnStatusBadge.style.color = '#059669';
+    } else if (statusUpdate.status === 'timeout' || statusUpdate.status === 'error') {
+      // Timeout ou erreur
+      isNetbirdSetupInProgress = false;
+      vpnStatusDot.style.background = '#ef4444';
+      vpnStatusText.textContent = 'Erreur de connexion';
+      vpnStatusBadge.style.background = 'rgba(239, 68, 68, 0.1)';
+      vpnStatusBadge.style.color = '#dc2626';
     }
   });
 }

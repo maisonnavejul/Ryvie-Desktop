@@ -217,9 +217,9 @@ async function handleManualSetup() {
   manualSetupError.style.display = 'none';
   
   try {
-    console.log('[Ryvie][Login] Configuration manuelle NetBird...');
+    console.log('[Ryvie][Login] Configuration manuelle NetBird avec IP:', tunnelIp);
     
-    const netbirdResult = await window.electronAPI.setupNetbird(setupKey);
+    const netbirdResult = await window.electronAPI.setupNetbird(setupKey, tunnelIp);
     
     if (!netbirdResult.success) {
       console.error('[Ryvie][Login] Erreur setup NetBird:', netbirdResult.error);
@@ -231,7 +231,11 @@ async function handleManualSetup() {
       return;
     }
     
-    console.log('[Ryvie][Login] NetBird configuré avec succès');
+    if (netbirdResult.alreadyConnected) {
+      console.log('[Ryvie][Login] NetBird déjà connecté, tunnel accessible');
+    } else {
+      console.log('[Ryvie][Login] NetBird configuré avec succès');
+    }
     
     const manualConfig = {
       mode: 'manual',
