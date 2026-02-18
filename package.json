@@ -27,25 +27,13 @@
   "license": "RSAL",
   "dependencies": {
     "electron-log": "^5.4.3",
-    "electron-updater": "^6.1.7",
-    "react": "^19.2.4",
-    "react-dom": "^19.2.4"
+    "electron-updater": "^6.1.7"
   },
   "devDependencies": {
-    "@babel/core": "^7.29.0",
-    "@babel/preset-env": "^7.29.0",
-    "@babel/preset-react": "^7.28.5",
-    "babel-loader": "^10.0.0",
-    "css-loader": "^7.1.4",
     "electron": "^40.4.1",
     "electron-builder": "^26.7.0",
-    "html-webpack-plugin": "^5.6.6",
     "png-to-ico": "^2.1.8",
-    "sharp": "^0.33.5",
-    "style-loader": "^4.0.0",
-    "webpack": "^5.105.2",
-    "webpack-cli": "^6.0.1",
-    "webpack-dev-server": "^5.2.3"
+    "sharp": "^0.33.5"
   },
   "overrides": {
     "got": "^11.8.5"
