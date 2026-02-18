@@ -15,6 +15,9 @@ const connectedSection = document.getElementById('connected');
 const disconnectedSection = document.getElementById('disconnected');
 const errorSection = document.getElementById('error');
 const warningModal = document.getElementById('warning-modal');
+const disconnectModal = document.getElementById('disconnect-modal');
+const confirmDisconnectBtn = document.getElementById('confirm-disconnect-btn');
+const cancelDisconnectBtn = document.getElementById('cancel-disconnect-btn');
 
 const connectionType = document.getElementById('connection-type');
 const vpnStatusBadge = document.getElementById('vpn-status-badge');
@@ -34,15 +37,7 @@ const newIdSpan = document.getElementById('new-id');
 const acceptBtn = document.getElementById('accept-btn');
 const refuseBtn = document.getElementById('refuse-btn');
 
-const manualSetupBtn = document.getElementById('manual-setup-btn');
-const manualSetupBtnDisconnected = document.getElementById('manual-setup-btn-disconnected');
 const retryConnectionBtn = document.getElementById('retry-connection-btn');
-const manualSetupModal = document.getElementById('manual-setup-modal');
-const manualSetupKeyInput = document.getElementById('manual-setup-key-input');
-const manualTunnelIpInput = document.getElementById('manual-tunnel-ip-input');
-const manualSetupError = document.getElementById('manual-setup-error');
-const manualSetupConfirmBtn = document.getElementById('manual-setup-confirm-btn');
-const manualSetupCancelBtn = document.getElementById('manual-setup-cancel-btn');
 
 const updateModal = document.getElementById('update-modal');
 const updateVersionEl = document.getElementById('update-version');
@@ -115,20 +110,6 @@ function hideWarningModal() {
   warningModal.classList.add('hidden');
 }
 
-function showManualSetupModal() {
-  manualSetupModal.classList.remove('hidden');
-  manualSetupKeyInput.value = '';
-  manualTunnelIpInput.value = '';
-  manualSetupError.style.display = 'none';
-  manualTunnelIpInput.focus();
-}
-
-function hideManualSetupModal() {
-  manualSetupModal.classList.add('hidden');
-  manualSetupKeyInput.value = '';
-  manualTunnelIpInput.value = '';
-  manualSetupError.style.display = 'none';
-}
 
 function maybeAutoOpen() {
   // IMPORTANT: N'ouvrir QUE si c'est le chargement initial ET qu'on n'a pas encore ouvert
@@ -168,7 +149,7 @@ async function checkConnection() {
   // Si pas de config, rediriger vers login
   if (!savedConfig || (!savedConfig.ryvieId && !savedConfig.setupKey)) {
     console.log('[Ryvie][Renderer] Aucune configuration trouvée, redirection vers login');
-    window.location.href = 'login.html';
+    window.electronAPI.navigateTo('login.html');
     return;
   }
 
@@ -512,14 +493,28 @@ retryBtn.addEventListener('click', () => {
 });
 
 if (disconnectBtn) {
-  disconnectBtn.addEventListener('click', async () => {
-    if (!confirm('Êtes-vous sûr de vouloir vous déconnecter ?\n\nToutes vos données de connexion seront supprimées.\nVous devrez vous reconnecter avec vos identifiants.')) {
-      return;
+  disconnectBtn.addEventListener('click', () => {
+    // Afficher la modale de confirmation
+    if (disconnectModal) {
+      disconnectModal.classList.remove('hidden');
+    }
+  });
+}
+
+if (confirmDisconnectBtn) {
+  confirmDisconnectBtn.addEventListener('click', async () => {
+    console.log('[Ryvie][Renderer] Déconnexion confirmée...');
+    
+    // Fermer la modale
+    if (disconnectModal) {
+      disconnectModal.classList.add('hidden');
     }
     
-    console.log('[Ryvie][Renderer] Déconnexion demandée...');
-    disconnectBtn.disabled = true;
-    disconnectBtn.classList.add('loading');
+    // Désactiver le bouton de déconnexion
+    if (disconnectBtn) {
+      disconnectBtn.disabled = true;
+      disconnectBtn.classList.add('loading');
+    }
     
     // Arrêter la vérification VPN
     stopVpnStatusCheck();
@@ -542,11 +537,20 @@ if (disconnectBtn) {
       console.error('[Ryvie][Renderer] Erreur déconnexion en arrière-plan:', error);
     });
     
-    // Rediriger immédiatement vers la page de connexion sans attendre
+    // Rediriger immédiatement vers la page de connexion (via main process pour contexte propre)
     console.log('[Ryvie][Renderer] Redirection immédiate vers la page de connexion');
     setTimeout(() => {
-      window.location.replace('login.html');
+      window.electronAPI.navigateTo('login.html');
     }, 100);
+  });
+}
+
+if (cancelDisconnectBtn) {
+  cancelDisconnectBtn.addEventListener('click', () => {
+    // Fermer la modale sans déconnecter
+    if (disconnectModal) {
+      disconnectModal.classList.add('hidden');
+    }
   });
 }
 
@@ -613,149 +617,12 @@ refuseBtn.addEventListener('click', () => {
   }
 });
 
-manualSetupBtn.addEventListener('click', () => {
-  showManualSetupModal();
-});
-
-if (manualSetupBtnDisconnected) {
-  manualSetupBtnDisconnected.addEventListener('click', () => {
-    showManualSetupModal();
-  });
-}
-
 if (retryConnectionBtn) {
   retryConnectionBtn.addEventListener('click', () => {
     isInitialLoad = false;
     checkConnection();
   });
 }
-
-manualSetupCancelBtn.addEventListener('click', () => {
-  hideManualSetupModal();
-});
-
-manualSetupConfirmBtn.addEventListener('click', async () => {
-  const setupKey = manualSetupKeyInput.value.trim();
-  const tunnelIp = manualTunnelIpInput.value.trim();
-  
-  // Validation des champs
-  if (!tunnelIp) {
-    manualSetupError.textContent = 'Veuillez entrer l\'IP du tunnel';
-    manualSetupError.style.display = 'block';
-    manualTunnelIpInput.focus();
-    return;
-  }
-  
-  if (!setupKey) {
-    manualSetupError.textContent = 'Veuillez entrer une setup key';
-    manualSetupError.style.display = 'block';
-    manualSetupKeyInput.focus();
-    return;
-  }
-  
-  // Validation basique de l'IP
-  const ipRegex = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/;
-  if (!ipRegex.test(tunnelIp)) {
-    manualSetupError.textContent = 'Format d\'IP invalide (ex: 100.64.0.1)';
-    manualSetupError.style.display = 'block';
-    manualTunnelIpInput.focus();
-    return;
-  }
-  
-  // Désactiver le bouton pendant le traitement et ajouter l'animation
-  manualSetupConfirmBtn.disabled = true;
-  manualSetupConfirmBtn.classList.add('loading');
-  manualSetupConfirmBtn.innerHTML = '<span class="btn-spinner"></span><span>Configuration...</span>';
-  manualSetupError.style.display = 'none';
-  
-  try {
-    console.log('[Ryvie][Renderer] Configuration manuelle NetBird avec setup key et IP:', tunnelIp);
-    
-    // Marquer le setup comme en cours
-    isNetbirdSetupInProgress = true;
-    setVpnStatusConnecting();
-    
-    // Appeler le setup NetBird avec l'IP du tunnel
-    const netbirdResult = await window.electronAPI.setupNetbird(setupKey, tunnelIp);
-    
-    // Marquer le setup comme terminé
-    isNetbirdSetupInProgress = false;
-    
-    if (!netbirdResult.success) {
-      console.error('[Ryvie][Renderer] Erreur setup NetBird:', netbirdResult.error);
-      manualSetupError.textContent = 'Erreur lors de la configuration: ' + (netbirdResult.error || 'Erreur inconnue');
-      manualSetupError.style.display = 'block';
-      manualSetupConfirmBtn.disabled = false;
-      manualSetupConfirmBtn.classList.remove('loading');
-      manualSetupConfirmBtn.innerHTML = '<span>Confirmer</span>';
-      return;
-    }
-    
-    console.log('[Ryvie][Renderer] NetBird configuré avec succès');
-    
-    // Créer une configuration manuelle avec l'IP du tunnel
-    const manualConfig = {
-      mode: 'manual',
-      ryvieId: 'manual-' + Date.now(),
-      tunnelHost: tunnelIp,
-      setupKey: setupKey,
-      url: `http://${tunnelIp}:3000`,
-      domains: {} // Ajouter un objet domains vide pour la compatibilité
-    };
-    
-    console.log('[Ryvie][Renderer] Sauvegarde de la configuration manuelle:', manualConfig);
-    
-    // Sauvegarder la configuration
-    const saveResult = await window.electronAPI.saveConfig(manualConfig);
-    if (saveResult) {
-      console.log('[Ryvie][Renderer] Configuration manuelle sauvegardée avec succès');
-      currentConfig = manualConfig;
-    } else {
-      console.error('[Ryvie][Renderer] Échec de la sauvegarde de la configuration');
-      throw new Error('Échec de la sauvegarde de la configuration');
-    }
-    
-    // Fermer la modale
-    hideManualSetupModal();
-    
-    // Afficher l'état connecté
-    showConnected();
-    updateUI(currentConfig);
-    
-    // Désactiver l'auto-ouverture pour la configuration manuelle
-    isInitialLoad = false;
-    setButtonLoading(false);
-    
-  } catch (error) {
-    console.error('[Ryvie][Renderer] Erreur inattendue:', error);
-    manualSetupError.textContent = 'Erreur inattendue: ' + error.message;
-    manualSetupError.style.display = 'block';
-  } finally {
-    manualSetupConfirmBtn.disabled = false;
-    manualSetupConfirmBtn.classList.remove('loading');
-    manualSetupConfirmBtn.innerHTML = '<span>Confirmer</span>';
-  }
-});
-
-// Permettre la validation avec la touche Entrée
-manualSetupKeyInput.addEventListener('keypress', (e) => {
-  if (e.key === 'Enter') {
-    manualSetupConfirmBtn.click();
-  }
-});
-
-manualTunnelIpInput.addEventListener('keypress', (e) => {
-  if (e.key === 'Enter') {
-    manualSetupKeyInput.focus();
-  }
-});
-
-// Fermer la modale si on clique en dehors
-manualSetupModal.addEventListener('click', (e) => {
-  if (e.target === manualSetupModal) {
-    hideManualSetupModal();
-  }
-});
 
 // ========================================
 // GESTION DES MISES À JOUR

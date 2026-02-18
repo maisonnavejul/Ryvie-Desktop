@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setupNetbird: (setupKey, tunnelHost) => ipcRenderer.invoke('setup-netbird', setupKey, tunnelHost),
   netbirdStatus: () => ipcRenderer.invoke('netbird-status'),
   disconnect: () => ipcRenderer.invoke('disconnect'),
+  navigateTo: (page) => ipcRenderer.invoke('navigate-to', page),
   onNetbirdStatus: (callback) => ipcRenderer.on('netbird-status-update', (event, status) => callback(status)),
   startUpdate: () => ipcRenderer.invoke('start-update'),
   skipUpdate: () => ipcRenderer.invoke('skip-update'),

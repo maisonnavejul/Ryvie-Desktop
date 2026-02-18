@@ -587,6 +587,20 @@ function netbirdStatus() {
   });
 }
 
+// IPC NAVIGATION - Recharge la fenêtre avec une nouvelle page (contexte propre)
+ipcMain.handle('navigate-to', async (event, page) => {
+  const allowedPages = ['login.html', 'index.html'];
+  if (!allowedPages.includes(page)) {
+    console.error('[Ryvie][Main] Page non autorisée:', page);
+    return { success: false, error: 'Page non autorisée' };
+  }
+  console.log('[Ryvie][Main] Navigation vers:', page);
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.loadFile(path.join(__dirname, '../renderer/' + page));
+  }
+  return { success: true };
+});
+
 // IPC CONFIG
 ipcMain.handle('load-config', async () => {
   try {

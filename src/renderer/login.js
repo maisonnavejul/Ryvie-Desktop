@@ -193,7 +193,7 @@ async function handleLogin() {
     
     // Rediriger vers la page principale (NetBird sera configuré par renderer.js)
     console.log('[Ryvie][Login] Redirection vers la page principale...');
-    window.location.href = 'index.html';
+    window.electronAPI.navigateTo('index.html');
     
   } catch (error) {
     console.error('[Ryvie][Login] Erreur inattendue:', error);
@@ -376,7 +376,7 @@ async function handleFirstTimeSetup() {
     console.log('[Ryvie][Login] Configuration sauvegardée');
     
     console.log('[Ryvie][Login] Redirection vers la page principale...');
-    window.location.href = 'index.html';
+    window.electronAPI.navigateTo('index.html');
     
   } catch (error) {
     console.error('[Ryvie][Login] Erreur inattendue:', error);
@@ -464,7 +464,7 @@ async function handleManualSetup() {
     console.log('[Ryvie][Login] Configuration manuelle sauvegardée');
     
     hideManualSetupModal();
-    window.location.href = 'index.html';
+    window.electronAPI.navigateTo('index.html');
     
   } catch (error) {
     console.error('[Ryvie][Login] Erreur inattendue:', error);

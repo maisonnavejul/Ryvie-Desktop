@@ -76,9 +76,6 @@
         <button id="retry-connection-btn" class="btn btn-secondary">
           <span>Réessayer</span>
         </button>
-        <button id="manual-setup-btn-disconnected" class="btn btn-primary">
-          <span>Saisir Setup Key</span>
-        </button>
       </div>
     </div>
 
@@ -94,83 +91,72 @@
         <button id="retry-btn" class="btn btn-secondary">
           <span>Réessayer</span>
         </button>
-        <button id="manual-setup-btn" class="btn btn-primary">
-          <span>Saisir Setup Key</span>
-        </button>
       </div>
     </div>
+  </div>
 
-    <div id="manual-setup-modal" class="modal hidden">
-      <div class="modal-content">
-        <div style="width: 60px; height: 60px; margin: 0 auto 20px; background: linear-gradient(135deg, #667eea, #764ba2); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </div>
-        <h2>Configuration Manuelle</h2>
-        <p style="margin-bottom: 20px; color: #64748b;">Entrez votre setup key NetBird et l'IP du tunnel pour vous connecter manuellement.</p>
-        <div style="margin: 20px 0;">
-          <div style="margin-bottom: 16px;">
-            <label for="manual-tunnel-ip-input" style="display: block; text-align: left; margin-bottom: 6px; color: #475569; font-size: 13px; font-weight: 600;">IP du Tunnel</label>
-            <input type="text" id="manual-tunnel-ip-input" placeholder="Ex: 100.64.0.1" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; font-family: 'Inter', sans-serif; transition: border-color 0.2s;" />
-          </div>
-          <div>
-            <label for="manual-setup-key-input" style="display: block; text-align: left; margin-bottom: 6px; color: #475569; font-size: 13px; font-weight: 600;">Setup Key NetBird</label>
-            <input type="text" id="manual-setup-key-input" placeholder="Collez votre setup key ici" style="width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; font-family: 'Inter', sans-serif; transition: border-color 0.2s;" />
-          </div>
-          <p id="manual-setup-error" style="color: #ef4444; font-size: 13px; margin-top: 8px; display: none;"></p>
-        </div>
-        <div class="modal-buttons">
-          <button id="manual-setup-confirm-btn" class="btn btn-primary"><span>Confirmer</span></button>
-          <button id="manual-setup-cancel-btn" class="btn btn-secondary"><span>Annuler</span></button>
-        </div>
+  <!-- Modales en dehors du container pour couvrir toute la fenêtre -->
+  <div id="warning-modal" class="modal hidden">
+    <div class="modal-content">
+      <div style="width: 60px; height: 60px; margin: 0 auto 20px; background: linear-gradient(135deg, #fbbf24, #f59e0b); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 25px rgba(251, 191, 36, 0.4);">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <h2>Nouveau Ryvie détecté</h2>
+      <p style="margin-bottom: 20px;">Un autre serveur Ryvie a été détecté sur votre réseau local.</p>
+      <div style="background: rgba(102, 126, 234, 0.05); padding: 16px; border-radius: 12px; margin: 20px 0;">
+        <p style="margin: 8px 0;"><span style="color: #64748b;">Actuel :</span> <strong id="current-id"></strong></p>
+        <p style="margin: 8px 0;"><span style="color: #64748b;">Nouveau :</span> <strong id="new-id"></strong></p>
+      </div>
+      <p style="color: #64748b; font-size: 13px; margin-bottom: 24px;">Voulez-vous vous connecter à ce nouveau serveur ?</p>
+      <div class="modal-buttons">
+        <button id="accept-btn" class="btn btn-primary">Accepter</button>
+        <button id="refuse-btn" class="btn btn-secondary">Refuser</button>
       </div>
     </div>
+  </div>
 
-    <div id="warning-modal" class="modal hidden">
-      <div class="modal-content">
-        <div style="width: 60px; height: 60px; margin: 0 auto 20px; background: linear-gradient(135deg, #fbbf24, #f59e0b); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 25px rgba(251, 191, 36, 0.4);">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </div>
-        <h2>Nouveau Ryvie détecté</h2>
-        <p style="margin-bottom: 20px;">Un autre serveur Ryvie a été détecté sur votre réseau local.</p>
-        <div style="background: rgba(102, 126, 234, 0.05); padding: 16px; border-radius: 12px; margin: 20px 0;">
-          <p style="margin: 8px 0;"><span style="color: #64748b;">Actuel :</span> <strong id="current-id"></strong></p>
-          <p style="margin: 8px 0;"><span style="color: #64748b;">Nouveau :</span> <strong id="new-id"></strong></p>
-        </div>
-        <p style="color: #64748b; font-size: 13px; margin-bottom: 24px;">Voulez-vous vous connecter à ce nouveau serveur ?</p>
-        <div class="modal-buttons">
-          <button id="accept-btn" class="btn btn-primary">Accepter</button>
-          <button id="refuse-btn" class="btn btn-secondary">Refuser</button>
-        </div>
+  <div id="disconnect-modal" class="modal hidden">
+    <div class="modal-content">
+      <div style="width: 60px; height: 60px; margin: 0 auto 20px; background: linear-gradient(135deg, #ef4444, #dc2626); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 25px rgba(239, 68, 68, 0.4);">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M16 17l5-5-5-5M21 12H9" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M13 7V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2h6a2 2 0 002-2v-1" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <h2>Confirmer la déconnexion</h2>
+      <p style="margin-bottom: 20px; color: #64748b;">Êtes-vous sûr de vouloir vous déconnecter ?</p>
+      <p style="margin-bottom: 20px; color: #64748b; font-size: 13px;">Toutes vos données de connexion seront supprimées. Vous devrez vous reconnecter avec vos identifiants.</p>
+      <div class="modal-buttons">
+        <button id="confirm-disconnect-btn" class="btn btn-primary" style="background: linear-gradient(135deg, #ef4444, #dc2626);"><span>Se déconnecter</span></button>
+        <button id="cancel-disconnect-btn" class="btn btn-secondary"><span>Annuler</span></button>
       </div>
     </div>
+  </div>
 
-    <div id="update-modal" class="modal hidden">
-      <div class="modal-content">
-        <div style="width: 60px; height: 60px; margin: 0 auto 20px; background: linear-gradient(135deg, #10b981, #059669); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
+  <div id="update-modal" class="modal hidden">
+    <div class="modal-content">
+      <div style="width: 60px; height: 60px; margin: 0 auto 20px; background: linear-gradient(135deg, #10b981, #059669); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <h2>Mise à jour disponible</h2>
+      <p style="margin-bottom: 20px; color: #64748b;">Une nouvelle version de Ryvie Desktop est disponible.</p>
+      <div style="background: rgba(102, 126, 234, 0.05); padding: 16px; border-radius: 12px; margin: 20px 0;">
+        <p style="margin: 8px 0;"><span style="color: #64748b;">Version :</span> <strong id="update-version"></strong></p>
+      </div>
+      <div id="update-progress" style="display: none; margin: 20px 0;">
+        <div style="background: #e2e8f0; border-radius: 8px; height: 8px; overflow: hidden;">
+          <div id="update-progress-bar" style="background: linear-gradient(90deg, #667eea, #764ba2); height: 100%; width: 0%; transition: width 0.3s;"></div>
         </div>
-        <h2>Mise à jour disponible</h2>
-        <p style="margin-bottom: 20px; color: #64748b;">Une nouvelle version de Ryvie Desktop est disponible.</p>
-        <div style="background: rgba(102, 126, 234, 0.05); padding: 16px; border-radius: 12px; margin: 20px 0;">
-          <p style="margin: 8px 0;"><span style="color: #64748b;">Version :</span> <strong id="update-version"></strong></p>
-        </div>
-        <div id="update-progress" style="display: none; margin: 20px 0;">
-          <div style="background: #e2e8f0; border-radius: 8px; height: 8px; overflow: hidden;">
-            <div id="update-progress-bar" style="background: linear-gradient(90deg, #667eea, #764ba2); height: 100%; width: 0%; transition: width 0.3s;"></div>
-          </div>
-          <p id="update-progress-text" style="text-align: center; margin-top: 8px; color: #64748b; font-size: 13px;">Téléchargement en cours...</p>
-        </div>
-        <div class="modal-buttons">
-          <button id="download-update-btn" class="btn btn-primary"><span>Télécharger</span></button>
-          <button id="install-update-btn" class="btn btn-primary" style="display: none;"><span>Installer et redémarrer</span></button>
-          <button id="close-update-btn" class="btn btn-secondary"><span>Plus tard</span></button>
-        </div>
+        <p id="update-progress-text" style="text-align: center; margin-top: 8px; color: #64748b; font-size: 13px;">Téléchargement en cours...</p>
+      </div>
+      <div class="modal-buttons">
+        <button id="download-update-btn" class="btn btn-primary"><span>Télécharger</span></button>
+        <button id="install-update-btn" class="btn btn-primary" style="display: none;"><span>Installer et redémarrer</span></button>
+        <button id="close-update-btn" class="btn btn-secondary"><span>Plus tard</span></button>
       </div>
     </div>
   </div>
