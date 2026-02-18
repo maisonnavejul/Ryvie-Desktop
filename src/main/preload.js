@@ -23,5 +23,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onDownloadProgress: (callback) => ipcRenderer.on('download-progress', (event, progress) => callback(progress)),
   onUpdateDownloaded: (callback) => ipcRenderer.on('update-downloaded', (event, info) => callback(info)),
   onUpdateError: (callback) => ipcRenderer.on('update-error', (event, error) => callback(error)),
-  onUpdateStatus: (callback) => ipcRenderer.on('update-status', (event, status) => callback(status))
+  onUpdateStatus: (callback) => ipcRenderer.on('update-status', (event, status) => callback(status)),
+  
+  // API first-time setup
+  checkFirstTime: () => ipcRenderer.invoke('check-first-time'),
+  createFirstUser: (userData) => ipcRenderer.invoke('create-first-user', userData)
 });

@@ -65,9 +65,17 @@ function createSplash() {
 }
 
 function createMain() {
+  // Taille responsive basée sur l'écran
+  const { screen } = require('electron');
+  const primaryDisplay = screen.getPrimaryDisplay();
+  const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
+  
+  const windowWidth = Math.min(Math.max(Math.floor(screenWidth * 0.5), 700), 1000);
+  const windowHeight = Math.min(Math.max(Math.floor(screenHeight * 0.6), 500), 700);
+  
   mainWindow = new BrowserWindow({
-    width: 600,
-    height: 400,
+    width: windowWidth,
+    height: windowHeight,
     resizable: false,
     show: false,
     webPreferences: {
@@ -1020,4 +1028,90 @@ ipcMain.handle('disconnect', async () => {
     console.error('[Ryvie][Main] Erreur deconnexion:', error);
     return { success: false, error: error.message };
   }
+});
+
+// IPC CHECK FIRST TIME
+ipcMain.handle('check-first-time', async () => {
+  console.log('[Ryvie][Main] Verification first-time setup');
+  
+  return new Promise((resolve) => {
+    const checkUrl = 'http://ryvie.local:3002/api/ldap/check-first-time';
+    const curlCommand = `curl -s -m 5 "${checkUrl}"`;
+    
+    exec(curlCommand, { timeout: 6000, windowsHide: true }, (error, stdout, stderr) => {
+      if (error) {
+        console.error('[Ryvie][Main] Erreur check-first-time:', error.message);
+        resolve({ success: false, error: 'Erreur de connexion' });
+        return;
+      }
+
+      try {
+        const data = JSON.parse(stdout);
+        console.log('[Ryvie][Main] First-time check:', data);
+        
+        if (data && typeof data.isFirstTime === 'boolean') {
+          resolve({
+            success: true,
+            isFirstTime: data.isFirstTime,
+            userCount: data.userCount || 0
+          });
+        } else {
+          console.warn('[Ryvie][Main] Reponse first-time invalide');
+          resolve({ success: false, error: 'Réponse invalide' });
+        }
+      } catch (parseError) {
+        console.error('[Ryvie][Main] Erreur parsing first-time:', parseError.message);
+        resolve({ success: false, error: 'Erreur serveur' });
+      }
+    });
+  });
+});
+
+// IPC CREATE FIRST USER
+ipcMain.handle('create-first-user', async (event, userData) => {
+  console.log('[Ryvie][Main] Creation premier utilisateur:', userData.uid);
+  
+  return new Promise((resolve) => {
+    const createUrl = 'http://ryvie.local:3002/api/ldap/create-first-user';
+    const postData = JSON.stringify({
+      uid: userData.uid,
+      name: userData.name,
+      email: userData.email,
+      password: userData.password,
+      language: userData.language || 'fr'
+    });
+    
+    const escapedData = postData.replace(/"/g, '\\"');
+    const curlCommand = `curl -s -m 10 -X POST "${createUrl}" -H "Content-Type: application/json" -d "${escapedData}"`;
+    
+    exec(curlCommand, { timeout: 11000, windowsHide: true }, (error, stdout, stderr) => {
+      if (error) {
+        console.error('[Ryvie][Main] Erreur creation premier utilisateur:', error.message);
+        resolve({ success: false, error: 'Erreur de connexion' });
+        return;
+      }
+
+      try {
+        const data = JSON.parse(stdout);
+        console.log('[Ryvie][Main] Reponse creation utilisateur:', data);
+        
+        if (data && (data.success || data.uid || data.message)) {
+          resolve({
+            success: true,
+            message: data.message || 'Utilisateur créé avec succès'
+          });
+        } else {
+          console.warn('[Ryvie][Main] Echec creation utilisateur:', data.error);
+          resolve({ 
+            success: false, 
+            error: data.error || 'Erreur lors de la création' 
+          });
+        }
+      } catch (parseError) {
+        console.error('[Ryvie][Main] Erreur parsing creation utilisateur:', parseError.message);
+        console.error('[Ryvie][Main] Stdout:', stdout);
+        resolve({ success: false, error: 'Erreur serveur' });
+      }
+    });
+  });
 });
