@@ -848,6 +848,21 @@ ipcMain.handle('check-for-updates', async () => {
 ipcMain.handle('setup-netbird', async (event, setupKey, tunnelHost) => {
   try {
     console.log('[Ryvie][Main] Setup NetBird demande');
+    
+    // Si setupKey contient le tunnelHost concaténé (format: UUID-IP), les séparer
+    if (setupKey && setupKey.includes('-') && setupKey.length > 36) {
+      const parts = setupKey.split('-');
+      // UUID format: 8-4-4-4-12 = 5 parties
+      if (parts.length > 5) {
+        // Les 5 premières parties sont l'UUID, le reste est le tunnelHost
+        const uuidParts = parts.slice(0, 5);
+        const hostParts = parts.slice(5);
+        setupKey = uuidParts.join('-');
+        tunnelHost = hostParts.join('-');
+        console.log('[Ryvie][Main] setupKey et tunnelHost séparés depuis la clé combinée');
+      }
+    }
+    
     console.log('[Ryvie][Main] setupKey:', setupKey ? 'présent' : 'absent');
     console.log('[Ryvie][Main] tunnelHost:', tunnelHost || 'non fourni');
     
