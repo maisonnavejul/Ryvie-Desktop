@@ -431,8 +431,25 @@ function netbirdLogout() {
       } else {
         console.log('[Ryvie][Main] NetBird deconnecte');
       }
-      // On considere toujours le logout comme reussi
-      resolve({ success: true });
+      
+      // vérifier l'état après logout et corriger si nécessaire
+      if (IS_WINDOWS) {
+        const statusCmd = `"${NETBIRD_PATH}" status`;
+        exec(statusCmd, { timeout: 5000, windowsHide: true }, (statusError, stdout) => {
+          if (stdout.includes('NeedsLogin')) {
+            console.log('[Ryvie][Main] Detection état NeedsLogin, redémarrage service...');
+            const restartCmd = `"${NETBIRD_PATH}" service stop && timeout /t 2 >nul && "${NETBIRD_PATH}" service start`;
+            exec(restartCmd, { timeout: 15000, windowsHide: true }, () => {
+              console.log('[Ryvie][Main] Service NetBird redémarré');
+              resolve({ success: true });
+            });
+          } else {
+            resolve({ success: true });
+          }
+        });
+      } else {
+        resolve({ success: true });
+      }
     });
   });
 }
