@@ -629,9 +629,9 @@ ipcMain.handle('test-machine-id', async () => {
   console.log('[Ryvie][Main] Test machine ID:', LOCAL_MACHINE_ID_URL);
   
   return new Promise((resolve) => {
-    const curlCommand = `curl -s -m 2 "${LOCAL_MACHINE_ID_URL}"`;
+    const curlCommand = `curl -s -m 15 "${LOCAL_MACHINE_ID_URL}"`;
     
-    exec(curlCommand, { timeout: 3000, windowsHide: true }, (error, stdout, stderr) => {
+    exec(curlCommand, { timeout: 18000, windowsHide: true }, (error, stdout, stderr) => {
       if (error) {
         console.warn('[Ryvie][Main] Erreur curl machine ID:', error.code || error.message);
         resolve({ success: false });
