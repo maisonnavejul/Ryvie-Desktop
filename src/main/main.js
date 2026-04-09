@@ -431,8 +431,25 @@ function netbirdLogout() {
       } else {
         console.log('[Ryvie][Main] NetBird deconnecte');
       }
-      // On considere toujours le logout comme reussi
-      resolve({ success: true });
+      
+      // vérifier l'état après logout et corriger si nécessaire
+      if (IS_WINDOWS) {
+        const statusCmd = `"${NETBIRD_PATH}" status`;
+        exec(statusCmd, { timeout: 5000, windowsHide: true }, (statusError, stdout) => {
+          if (stdout.includes('NeedsLogin')) {
+            console.log('[Ryvie][Main] Detection état NeedsLogin, redémarrage service...');
+            const restartCmd = `"${NETBIRD_PATH}" service stop && timeout /t 2 >nul && "${NETBIRD_PATH}" service start`;
+            exec(restartCmd, { timeout: 15000, windowsHide: true }, () => {
+              console.log('[Ryvie][Main] Service NetBird redémarré');
+              resolve({ success: true });
+            });
+          } else {
+            resolve({ success: true });
+          }
+        });
+      } else {
+        resolve({ success: true });
+      }
     });
   });
 }
@@ -629,9 +646,9 @@ ipcMain.handle('test-machine-id', async () => {
   console.log('[Ryvie][Main] Test machine ID:', LOCAL_MACHINE_ID_URL);
   
   return new Promise((resolve) => {
-    const curlCommand = `curl -s -m 2 "${LOCAL_MACHINE_ID_URL}"`;
+    const curlCommand = `curl -s -m 15 "${LOCAL_MACHINE_ID_URL}"`;
     
-    exec(curlCommand, { timeout: 3000, windowsHide: true }, (error, stdout, stderr) => {
+    exec(curlCommand, { timeout: 18000, windowsHide: true }, (error, stdout, stderr) => {
       if (error) {
         console.warn('[Ryvie][Main] Erreur curl machine ID:', error.code || error.message);
         resolve({ success: false });
