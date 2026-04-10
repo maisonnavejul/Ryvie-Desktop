@@ -30,10 +30,10 @@
     "electron-updater": "^6.1.7"
   },
   "devDependencies": {
-    "electron": "^40.4.1",
+    "electron": "^40.8.5",
     "electron-builder": "^26.7.0",
-    "png-to-ico": "^2.1.8",
-    "sharp": "^0.33.5"
+    "png-to-ico": "^3.0.1",
+    "sharp": "^0.34.5"
   },
   "overrides": {
     "got": "^11.8.5"
