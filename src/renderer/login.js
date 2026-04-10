@@ -9,6 +9,8 @@ let currentFilter = 'local';
 let allUsers = [];
 let isFirstTimeSetup = false;
 let userToDelete = null;
+let isConnecting = false;
+let currentConnectionAbortController = null;
 
 // Attendre que le DOM soit complètement chargé
 document.addEventListener('DOMContentLoaded', function() {
@@ -140,22 +142,35 @@ function attachEventListeners() {
   // Event listeners pour la section utilisateurs
   if (addUserBtn) {
     addUserBtn.addEventListener('click', () => {
+      cancelCurrentConnection();
       showSection('login-section');
     });
   }
   
   // Event listeners pour les filtres
   if (filterLocalBtn) {
-    filterLocalBtn.addEventListener('click', () => setFilter('local'));
+    filterLocalBtn.addEventListener('click', () => {
+      cancelCurrentConnection();
+      setFilter('local');
+    });
   }
   if (filterManualBtn) {
-    filterManualBtn.addEventListener('click', () => setFilter('manual'));
+    filterManualBtn.addEventListener('click', () => {
+      cancelCurrentConnection();
+      setFilter('manual');
+    });
   }
   if (addLocalBtn) {
-    addLocalBtn.addEventListener('click', () => showSection('login-section'));
+    addLocalBtn.addEventListener('click', () => {
+      cancelCurrentConnection();
+      showSection('login-section');
+    });
   }
   if (addManualBtn) {
-    addManualBtn.addEventListener('click', () => showManualSetupModal());
+    addManualBtn.addEventListener('click', () => {
+      cancelCurrentConnection();
+      showManualSetupModal();
+    });
   }
   
   // Event listeners pour le modal de confirmation suppression
@@ -578,6 +593,9 @@ function filterAndDisplayUsers() {
       
       // Event listener pour le switch d'utilisateur
       userBtn.addEventListener('click', async () => {
+        // Annuler toute connexion en cours avant de commencer une nouvelle
+        cancelCurrentConnection();
+        
         userBtn.disabled = true;
         userBtn.innerHTML = '<span class="btn-spinner"></span><span>Connexion...</span>';
         
@@ -611,8 +629,33 @@ function filterAndDisplayUsers() {
 async function switchUser(userKey) {
   console.log('[Ryvie][Login] Switch vers utilisateur:', userKey);
   
+  // Annuler toute connexion en cours
+  if (currentConnectionAbortController) {
+    console.log('[Ryvie][Login] Annulation de la connexion précédente');
+    currentConnectionAbortController.abort();
+    currentConnectionAbortController = null;
+  }
+  
+  // Créer un nouveau AbortController pour cette connexion
+  currentConnectionAbortController = new AbortController();
+  const signal = currentConnectionAbortController.signal;
+  
+  isConnecting = true;
+  disableFilters(true);
+  
   try {
+    // Vérifier si l'opération a été annulée
+    if (signal.aborted) {
+      console.log('[Ryvie][Login] Connexion annulée avant le début');
+      return;
+    }
+    
     const switchResult = await window.electronAPI.switchUser(userKey);
+    
+    if (signal.aborted) {
+      console.log('[Ryvie][Login] Connexion annulée après la réponse');
+      return;
+    }
     
     if (!switchResult.success) {
       console.error('[Ryvie][Login] Erreur switch utilisateur:', switchResult.error);
@@ -628,9 +671,61 @@ async function switchUser(userKey) {
     window.electronAPI.navigateTo('index.html');
     
   } catch (error) {
+    if (error.name === 'AbortError') {
+      console.log('[Ryvie][Login] Connexion annulée');
+      return;
+    }
     console.error('[Ryvie][Login] Erreur switch utilisateur:', error);
     alert('Erreur lors du changement d\'utilisateur: ' + error.message);
+  } finally {
+    isConnecting = false;
+    currentConnectionAbortController = null;
+    disableFilters(false);
   }
+}
+
+function disableFilters(disabled) {
+  if (filterLocalBtn) {
+    filterLocalBtn.disabled = disabled;
+  }
+  if (filterManualBtn) {
+    filterManualBtn.disabled = disabled;
+  }
+  if (addLocalBtn) {
+    addLocalBtn.disabled = disabled;
+  }
+  if (addManualBtn) {
+    addManualBtn.disabled = disabled;
+  }
+}
+
+function cancelCurrentConnection() {
+  if (currentConnectionAbortController) {
+    console.log('[Ryvie][Login] Annulation de la connexion en cours');
+    currentConnectionAbortController.abort();
+    currentConnectionAbortController = null;
+  }
+  isConnecting = false;
+  disableFilters(false);
+  resetUserButtons();
+}
+
+function resetUserButtons() {
+  const userButtons = usersList.querySelectorAll('.user-btn');
+  userButtons.forEach(btn => {
+    btn.disabled = false;
+    const spinner = btn.querySelector('.btn-spinner');
+    if (spinner) {
+      btn.innerHTML = '';
+      // Restaurer le contenu original
+      const avatar = btn.querySelector('.user-avatar');
+      const userInfo = btn.querySelector('.user-info');
+      if (avatar && userInfo) {
+        btn.appendChild(avatar);
+        btn.appendChild(userInfo);
+      }
+    }
+  });
 }
 
 function showConfirmDeleteModal(userKey, userName) {
