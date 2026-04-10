@@ -21,6 +21,32 @@
       <p style="color: #64748b; font-size: 13px; margin-top: 8px;">Vérification en cours...</p>
     </div>
 
+    <div id="users-selection-section" class="status-section section" style="display: none;">
+      <div style="margin: 12px auto; max-width: 60%;">
+        <h2 style="font-size: 16px; margin: 0 0 16px; text-align: center; color: #0f172a;">Choisir un compte</h2>
+        
+        <div id="filter-buttons" style="display: flex; gap: 8px; margin-bottom: 16px;">
+          <button id="filter-local-btn" class="btn filter-btn active" style="flex: 1; font-size: 12px; padding: 8px; background: #667eea; color: white; border: none;">
+            Connexion locale
+          </button>
+          <button id="filter-manual-btn" class="btn filter-btn" style="flex: 1; font-size: 12px; padding: 8px; background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0;">
+            Connexion manuelle
+          </button>
+        </div>
+        
+        <div id="users-list" style="display: grid; gap: 10px; margin-bottom: 16px;"></div>
+        
+        <div id="add-buttons-container" style="display: flex; gap: 8px;">
+          <button id="add-local-btn" class="btn btn-secondary" style="flex: 1; font-size: 12px; display: block;">
+            <span>Ajouter un compte local</span>
+          </button>
+          <button id="add-manual-btn" class="btn btn-secondary" style="flex: 1; font-size: 12px; display: none;">
+            <span>Ajouter une connexion manuelle</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
     <div id="first-time-section" class="status-section section" style="display: none;">
       <div style="margin: 0 auto; width: 75%; max-width: 600px; padding-bottom: 20px;">
         <p style="font-size: 14px; color: #64748b; margin: 0 0 16px; text-align: center;">Créez le premier compte administrateur</p>
@@ -83,8 +109,8 @@
           <span>Se connecter</span>
         </button>
         
-        <button id="manual-setup-btn-login" class="btn btn-secondary" style="flex: 1; font-size: 12px;">
-          <span>Configuration manuelle</span>
+        <button id="cancel-login-btn" class="btn btn-secondary" style="flex: 1; font-size: 12px;">
+          <span>Annuler</span>
         </button>
       </div>
     </div>
@@ -101,6 +127,10 @@
           <p style="margin-bottom: 20px; color: #64748b; font-size: 13px; text-align: center;">Entrez votre clé de configuration pour vous connecter manuellement.</p>
           <div style="margin: 16px 0;">
             <div style="margin-bottom: 12px;">
+              <label for="manual-setup-name-input" style="display: block; text-align: left; margin-bottom: 4px; color: #475569; font-size: 12px; font-weight: 600;">Nom de la connexion</label>
+              <input type="text" id="manual-setup-name-input" placeholder="Ex: Ryvie Salon, Bureau..." style="width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 13px; font-family: 'Inter', sans-serif; transition: border-color 0.2s; box-sizing: border-box;" />
+            </div>
+            <div style="margin-bottom: 12px;">
               <label for="manual-setup-key-input" style="display: block; text-align: left; margin-bottom: 4px; color: #475569; font-size: 12px; font-weight: 600;">Clé de Configuration</label>
               <input type="text" id="manual-setup-key-input" placeholder="Collez votre clé de configuration ici" style="width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 13px; font-family: 'Inter', sans-serif; transition: border-color 0.2s; box-sizing: border-box;" />
             </div>
@@ -111,6 +141,23 @@
             <button id="manual-setup-cancel-btn" class="btn btn-secondary" style="flex: 1; font-size: 13px;"><span>Annuler</span></button>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de confirmation suppression -->
+  <div id="confirm-delete-modal" class="modal hidden" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 99999; display: none; align-items: center; justify-content: center; backdrop-filter: blur(2px);">
+    <div style="background: white; border-radius: 16px; padding: 24px; max-width: 360px; width: 90%; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);">
+      <div style="width: 48px; height: 48px; margin: 0 auto 16px; background: #ef4444; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14zM10 11v6M14 11v6" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <h2 style="font-size: 18px; margin: 0 0 8px; text-align: center; color: #0f172a;">Supprimer l'utilisateur</h2>
+      <p id="confirm-delete-message" style="margin: 0 0 20px; color: #64748b; font-size: 14px; text-align: center;">Voulez-vous vraiment supprimer cet utilisateur ?</p>
+      <div style="display: flex; gap: 10px;">
+        <button id="confirm-delete-btn" class="btn btn-primary" style="flex: 1; font-size: 13px; background: #ef4444;"><span>Supprimer</span></button>
+        <button id="cancel-delete-btn" class="btn btn-secondary" style="flex: 1; font-size: 13px;"><span>Annuler</span></button>
       </div>
     </div>
   </div>

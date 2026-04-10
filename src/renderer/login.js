@@ -1,8 +1,14 @@
-let uidInput, passwordInput, loginBtn, loginError, manualSetupBtnLogin;
-let manualSetupModal, manualSetupKeyInput, manualSetupError, manualSetupConfirmBtn, manualSetupCancelBtn;
+let uidInput, passwordInput, loginBtn, loginError, cancelLoginBtn;
+let manualSetupModal, manualSetupNameInput, manualSetupKeyInput, manualSetupError, manualSetupConfirmBtn, manualSetupCancelBtn;
 let loadingSection, firstTimeSection, loginSection, firstTimeForm, firstTimeError;
 let firstTimeUidInput, firstTimeEmailInput, firstTimeLanguageSelect, firstTimePasswordInput, firstTimeConfirmPasswordInput, firstTimeCreateBtn;
+let usersSelectionSection, usersList, addUserBtn;
+let filterLocalBtn, filterManualBtn, addLocalBtn, addManualBtn;
+let confirmDeleteModal, confirmDeleteMessage, confirmDeleteBtn, cancelDeleteBtn;
+let currentFilter = 'local';
+let allUsers = [];
 let isFirstTimeSetup = false;
+let userToDelete = null;
 
 // Attendre que le DOM soit complètement chargé
 document.addEventListener('DOMContentLoaded', function() {
@@ -13,9 +19,10 @@ document.addEventListener('DOMContentLoaded', function() {
   passwordInput = document.getElementById('password-input');
   loginBtn = document.getElementById('login-btn');
   loginError = document.getElementById('login-error');
-  manualSetupBtnLogin = document.getElementById('manual-setup-btn-login');
+  cancelLoginBtn = document.getElementById('cancel-login-btn');
   
   manualSetupModal = document.getElementById('manual-setup-modal');
+  manualSetupNameInput = document.getElementById('manual-setup-name-input');
   manualSetupKeyInput = document.getElementById('manual-setup-key-input');
   manualSetupError = document.getElementById('manual-setup-error');
   manualSetupConfirmBtn = document.getElementById('manual-setup-confirm-btn');
@@ -33,6 +40,23 @@ document.addEventListener('DOMContentLoaded', function() {
   firstTimePasswordInput = document.getElementById('first-time-password-input');
   firstTimeConfirmPasswordInput = document.getElementById('first-time-confirm-password-input');
   firstTimeCreateBtn = document.getElementById('first-time-create-btn');
+  
+  // Éléments sélection utilisateurs
+  usersSelectionSection = document.getElementById('users-selection-section');
+  usersList = document.getElementById('users-list');
+  addUserBtn = document.getElementById('add-user-btn');
+  
+  // Éléments filtres
+  filterLocalBtn = document.getElementById('filter-local-btn');
+  filterManualBtn = document.getElementById('filter-manual-btn');
+  addLocalBtn = document.getElementById('add-local-btn');
+  addManualBtn = document.getElementById('add-manual-btn');
+  
+  // Éléments modal confirmation suppression
+  confirmDeleteModal = document.getElementById('confirm-delete-modal');
+  confirmDeleteMessage = document.getElementById('confirm-delete-message');
+  confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+  cancelDeleteBtn = document.getElementById('cancel-delete-btn');
   
   // Forcer l'activation des champs
   if (uidInput) {
@@ -97,8 +121,8 @@ function attachEventListeners() {
     });
   }
   
-  if (manualSetupBtnLogin) {
-    manualSetupBtnLogin.addEventListener('click', showManualSetupModal);
+  if (cancelLoginBtn) {
+    cancelLoginBtn.addEventListener('click', () => showSection('users-selection-section'));
   }
   
   if (manualSetupConfirmBtn) {
@@ -112,17 +136,60 @@ function attachEventListeners() {
   if (firstTimeCreateBtn) {
     firstTimeCreateBtn.addEventListener('click', handleFirstTimeSetup);
   }
+  
+  // Event listeners pour la section utilisateurs
+  if (addUserBtn) {
+    addUserBtn.addEventListener('click', () => {
+      showSection('login-section');
+    });
+  }
+  
+  // Event listeners pour les filtres
+  if (filterLocalBtn) {
+    filterLocalBtn.addEventListener('click', () => setFilter('local'));
+  }
+  if (filterManualBtn) {
+    filterManualBtn.addEventListener('click', () => setFilter('manual'));
+  }
+  if (addLocalBtn) {
+    addLocalBtn.addEventListener('click', () => showSection('login-section'));
+  }
+  if (addManualBtn) {
+    addManualBtn.addEventListener('click', () => showManualSetupModal());
+  }
+  
+  // Event listeners pour le modal de confirmation suppression
+  if (confirmDeleteBtn) {
+    confirmDeleteBtn.addEventListener('click', async () => {
+      if (userToDelete) {
+        await executeRemoveUser();
+        hideConfirmDeleteModal();
+      }
+    });
+  }
+  if (cancelDeleteBtn) {
+    cancelDeleteBtn.addEventListener('click', hideConfirmDeleteModal);
+  }
+  if (confirmDeleteModal) {
+    confirmDeleteModal.addEventListener('click', (e) => {
+      if (e.target === confirmDeleteModal) {
+        hideConfirmDeleteModal();
+      }
+    });
+  }
 }
 
 function showManualSetupModal() {
   manualSetupModal.classList.remove('hidden');
+  manualSetupNameInput.value = '';
   manualSetupKeyInput.value = '';
   manualSetupError.style.display = 'none';
-  manualSetupKeyInput.focus();
+  manualSetupNameInput.focus();
 }
 
 function hideManualSetupModal() {
   manualSetupModal.classList.add('hidden');
+  manualSetupNameInput.value = '';
   manualSetupKeyInput.value = '';
   manualSetupError.style.display = 'none';
 }
@@ -187,7 +254,24 @@ async function handleLogin() {
       jwtToken: authResult.token
     };
     
-    // Sauvegarder la configuration
+    // Sauvegarder l'utilisateur avec le nouveau système multi-utilisateurs
+    const userConfig = {
+      uid: uid,
+      name: uid,
+      email: '',
+      role: localData.role || 'User',
+      ryvieId: localData.ryvieId,
+      setupKey: localData.setupKey,
+      tunnelHost: localData.tunnelHost,
+      jwtToken: authResult.token,
+      domains: localData.domains,
+      mode: 'local'
+    };
+    
+    await window.electronAPI.saveUserConfig(userConfig);
+    console.log('[Ryvie][Login] Utilisateur sauvegardé avec le nouveau système');
+    
+    // Sauvegarder la configuration (pour compatibilité)
     await window.electronAPI.saveConfig(config);
     console.log('[Ryvie][Login] Configuration sauvegardée');
     
@@ -215,9 +299,19 @@ async function checkFirstTimeSetup() {
       isFirstTimeSetup = true;
       showFirstTimeSetup();
     } else {
-      console.log('[Ryvie][Login] Utilisateurs existants, affichage du formulaire de connexion');
-      isFirstTimeSetup = false;
-      showLoginForm();
+      console.log('[Ryvie][Login] Utilisateurs existants, vérification des utilisateurs sauvegardés...');
+      // Vérifier s'il y a des utilisateurs sauvegardés
+      const usersResult = await window.electronAPI.getAllUsers();
+      
+      if (usersResult.success && usersResult.users && usersResult.users.length > 0) {
+        console.log('[Ryvie][Login] Utilisateurs sauvegardés détectés:', usersResult.users.length);
+        isFirstTimeSetup = false;
+        loadAndShowUsers(usersResult.users);
+      } else {
+        console.log('[Ryvie][Login] Pas d\'utilisateurs sauvegardés, affichage du formulaire de connexion');
+        isFirstTimeSetup = false;
+        showLoginForm();
+      }
     }
   } catch (error) {
     console.error('[Ryvie][Login] Erreur vérification first-time:', error);
@@ -267,9 +361,322 @@ function showLoginForm() {
     firstTimeSection.classList.remove('visible');
     firstTimeSection.style.display = 'none';
   }
+  if (usersSelectionSection) {
+    usersSelectionSection.classList.remove('visible');
+    usersSelectionSection.style.display = 'none';
+  }
   if (loginSection) {
     loginSection.style.display = 'block';
     requestAnimationFrame(() => loginSection.classList.add('visible'));
+  }
+}
+
+function showSection(sectionId) {
+  hideLoading();
+  setCompactHeader(false);
+  
+  // Masquer toutes les sections
+  if (firstTimeSection) {
+    firstTimeSection.classList.remove('visible');
+    firstTimeSection.style.display = 'none';
+  }
+  if (usersSelectionSection) {
+    usersSelectionSection.classList.remove('visible');
+    usersSelectionSection.style.display = 'none';
+  }
+  if (loginSection) {
+    loginSection.classList.remove('visible');
+    loginSection.style.display = 'none';
+  }
+  
+  // Afficher la section demandée
+  if (sectionId === 'login-section') {
+    if (loginSection) {
+      loginSection.style.display = 'block';
+      requestAnimationFrame(() => loginSection.classList.add('visible'));
+    }
+  } else if (sectionId === 'users-selection-section') {
+    if (usersSelectionSection) {
+      usersSelectionSection.style.display = 'block';
+      requestAnimationFrame(() => usersSelectionSection.classList.add('visible'));
+    }
+  }
+}
+
+function loadAndShowUsers(users) {
+  allUsers = users;
+  hideLoading();
+  setCompactHeader(false);
+  
+  // Masquer les autres sections
+  if (firstTimeSection) {
+    firstTimeSection.classList.remove('visible');
+    firstTimeSection.style.display = 'none';
+  }
+  if (loginSection) {
+    loginSection.classList.remove('visible');
+    loginSection.style.display = 'none';
+  }
+  
+  // Afficher la section utilisateurs
+  if (usersSelectionSection) {
+    usersSelectionSection.style.display = 'block';
+    requestAnimationFrame(() => usersSelectionSection.classList.add('visible'));
+  }
+  
+  // Initialiser avec le filtre local par défaut
+  setFilter('local');
+}
+
+function setFilter(filter) {
+  currentFilter = filter;
+  
+  // Mettre à jour l'apparence des boutons
+  if (filterLocalBtn) {
+    const isLocal = filter === 'local';
+    filterLocalBtn.style.background = isLocal ? '#667eea' : '#f1f5f9';
+    filterLocalBtn.style.color = isLocal ? 'white' : '#475569';
+    filterLocalBtn.style.border = isLocal ? 'none' : '1px solid #e2e8f0';
+  }
+  if (filterManualBtn) {
+    const isManual = filter === 'manual';
+    filterManualBtn.style.background = isManual ? '#667eea' : '#f1f5f9';
+    filterManualBtn.style.color = isManual ? 'white' : '#475569';
+    filterManualBtn.style.border = isManual ? 'none' : '1px solid #e2e8f0';
+  }
+  
+  // Afficher le bon bouton d'ajout
+  if (addLocalBtn) {
+    addLocalBtn.style.display = filter === 'local' ? 'block' : 'none';
+  }
+  if (addManualBtn) {
+    addManualBtn.style.display = filter === 'manual' ? 'block' : 'none';
+  }
+  
+  // Afficher les utilisateurs filtrés
+  filterAndDisplayUsers();
+}
+
+function filterAndDisplayUsers() {
+  if (!usersList) return;
+  
+  usersList.innerHTML = '';
+  
+  const filteredUsers = allUsers.filter(user => (user.mode || 'local') === currentFilter);
+  
+  if (filteredUsers.length === 0) {
+    const emptyMsg = document.createElement('div');
+    emptyMsg.style.cssText = 'text-align: center; padding: 20px; color: #64748b; font-size: 13px;';
+    emptyMsg.textContent = currentFilter === 'local' 
+      ? 'Aucun compte local enregistré. Cliquez sur "Ajouter" pour en créer un.'
+      : 'Aucune connexion manuelle enregistrée. Cliquez sur "Ajouter" pour en créer une.';
+    usersList.appendChild(emptyMsg);
+    return;
+  }
+  
+  filteredUsers.forEach(user => {
+      const userKey = user.email || user.uid;
+      const userBtn = document.createElement('button');
+      userBtn.className = 'btn user-select-btn';
+      userBtn.style.cssText = `
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        background: white;
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        font-size: 13px;
+        transition: all 0.2s;
+        cursor: pointer;
+      `;
+      
+      const avatar = document.createElement('div');
+      avatar.style.cssText = `
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 600;
+        font-size: 16px;
+      `;
+      avatar.textContent = (user.name || user.uid || 'U').charAt(0).toUpperCase();
+      
+      const userInfo = document.createElement('div');
+      userInfo.style.cssText = `
+        flex: 1;
+        text-align: left;
+      `;
+      
+      const userName = document.createElement('div');
+      userName.style.cssText = `
+        font-weight: 600;
+        color: #0f172a;
+        font-size: 14px;
+      `;
+      userName.textContent = user.name || user.uid || 'Utilisateur';
+      
+      userInfo.appendChild(userName);
+      
+      const userRole = document.createElement('div');
+      userRole.style.cssText = `
+        color: #8b5cf6;
+        font-size: 11px;
+        font-weight: 600;
+        margin-top: 2px;
+      `;
+      userRole.textContent = user.role || 'User';
+      
+      userInfo.appendChild(userRole);
+      
+      userBtn.appendChild(avatar);
+      userBtn.appendChild(userInfo);
+      
+      // Bouton de suppression (croix)
+      const deleteBtn = document.createElement('button');
+      deleteBtn.innerHTML = '&times;';
+      deleteBtn.style.cssText = `
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        border: none;
+        background: #f1f5f9;
+        color: #64748b;
+        font-size: 18px;
+        line-height: 1;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+        margin-left: 8px;
+        flex-shrink: 0;
+      `;
+      deleteBtn.title = 'Supprimer cet utilisateur';
+      
+      deleteBtn.addEventListener('mouseenter', () => {
+        deleteBtn.style.background = '#ef4444';
+        deleteBtn.style.color = 'white';
+      });
+      
+      deleteBtn.addEventListener('mouseleave', () => {
+        deleteBtn.style.background = '#f1f5f9';
+        deleteBtn.style.color = '#64748b';
+      });
+      
+      deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showConfirmDeleteModal(userKey, user.name || user.uid);
+      });
+      
+      userBtn.appendChild(deleteBtn);
+      
+      // Event listener pour le switch d'utilisateur
+      userBtn.addEventListener('click', async () => {
+        userBtn.disabled = true;
+        userBtn.innerHTML = '<span class="btn-spinner"></span><span>Connexion...</span>';
+        
+        try {
+          await switchUser(userKey);
+        } catch (error) {
+          console.error('[Ryvie][Login] Erreur switch utilisateur:', error);
+          userBtn.disabled = false;
+          userBtn.innerHTML = '';
+          userBtn.appendChild(avatar);
+          userBtn.appendChild(userInfo);
+        }
+      });
+      
+      // Hover effect
+      userBtn.addEventListener('mouseenter', () => {
+        userBtn.style.borderColor = '#667eea';
+        userBtn.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.2)';
+      });
+      
+      userBtn.addEventListener('mouseleave', () => {
+        userBtn.style.borderColor = '#e2e8f0';
+        userBtn.style.boxShadow = 'none';
+      });
+      
+      usersList.appendChild(userBtn);
+    });
+  }
+
+
+async function switchUser(userKey) {
+  console.log('[Ryvie][Login] Switch vers utilisateur:', userKey);
+  
+  try {
+    const switchResult = await window.electronAPI.switchUser(userKey);
+    
+    if (!switchResult.success) {
+      console.error('[Ryvie][Login] Erreur switch utilisateur:', switchResult.error);
+      alert('Erreur lors du changement d\'utilisateur: ' + switchResult.error);
+      return;
+    }
+    
+    // Sauvegarder la configuration
+    await window.electronAPI.saveConfig(switchResult.config);
+    console.log('[Ryvie][Login] Configuration utilisateur chargée');
+    
+    // Rediriger vers la page principale
+    window.electronAPI.navigateTo('index.html');
+    
+  } catch (error) {
+    console.error('[Ryvie][Login] Erreur switch utilisateur:', error);
+    alert('Erreur lors du changement d\'utilisateur: ' + error.message);
+  }
+}
+
+function showConfirmDeleteModal(userKey, userName) {
+  userToDelete = { key: userKey, name: userName };
+  if (confirmDeleteMessage) {
+    confirmDeleteMessage.textContent = `Voulez-vous vraiment supprimer l'utilisateur "${userName}" ?`;
+  }
+  if (confirmDeleteModal) {
+    confirmDeleteModal.style.display = 'flex';
+  }
+}
+
+function hideConfirmDeleteModal() {
+  userToDelete = null;
+  if (confirmDeleteModal) {
+    confirmDeleteModal.style.display = 'none';
+  }
+}
+
+async function executeRemoveUser() {
+  if (!userToDelete) return;
+  
+  const userKey = userToDelete.key;
+  console.log('[Ryvie][Login] Suppression utilisateur:', userKey);
+  
+  try {
+    const result = await window.electronAPI.removeUser(userKey);
+    
+    if (!result.success) {
+      console.error('[Ryvie][Login] Erreur suppression utilisateur:', result.error);
+      alert('Erreur lors de la suppression: ' + result.error);
+      return;
+    }
+    
+    console.log('[Ryvie][Login] Utilisateur supprimé:', userKey);
+    
+    // Recharger la liste des utilisateurs
+    const usersResult = await window.electronAPI.getAllUsers();
+    if (usersResult.success) {
+      allUsers = usersResult.users;
+      filterAndDisplayUsers();
+    }
+    
+  } catch (error) {
+    console.error('[Ryvie][Login] Erreur suppression utilisateur:', error);
+    alert('Erreur lors de la suppression: ' + error.message);
   }
 }
 
@@ -372,6 +779,23 @@ async function handleFirstTimeSetup() {
       jwtToken: authResult.token
     };
     
+    // Sauvegarder l'utilisateur avec le nouveau système multi-utilisateurs
+    const userConfig = {
+      uid: uid,
+      name: uid,
+      email: email,
+      role: localData.role || 'User',
+      ryvieId: localData.ryvieId,
+      setupKey: localData.setupKey,
+      tunnelHost: localData.tunnelHost,
+      jwtToken: authResult.token,
+      domains: localData.domains,
+      mode: 'local'
+    };
+    
+    await window.electronAPI.saveUserConfig(userConfig);
+    console.log('[Ryvie][Login] Utilisateur sauvegardé avec le nouveau système');
+    
     await window.electronAPI.saveConfig(config);
     console.log('[Ryvie][Login] Configuration sauvegardée');
     
@@ -389,7 +813,15 @@ async function handleFirstTimeSetup() {
 }
 
 async function handleManualSetup() {
+  const connectionName = manualSetupNameInput.value.trim();
   const configKey = manualSetupKeyInput.value.trim();
+  
+  if (!connectionName) {
+    manualSetupError.textContent = 'Veuillez entrer un nom pour cette connexion';
+    manualSetupError.style.display = 'block';
+    manualSetupNameInput.focus();
+    return;
+  }
   
   if (!configKey) {
     manualSetupError.textContent = 'Veuillez entrer une clé de configuration';
@@ -462,6 +894,23 @@ async function handleManualSetup() {
     
     await window.electronAPI.saveConfig(manualConfig);
     console.log('[Ryvie][Login] Configuration manuelle sauvegardée');
+    
+    // Sauvegarder l'utilisateur avec le nouveau système multi-utilisateurs
+    const userConfig = {
+      uid: 'manual-' + Date.now(),
+      name: connectionName,
+      email: '',
+      role: 'User',
+      ryvieId: manualConfig.ryvieId,
+      setupKey: setupKey,
+      tunnelHost: tunnelIp,
+      jwtToken: '',
+      domains: {},
+      mode: 'manual'
+    };
+    
+    await window.electronAPI.saveUserConfig(userConfig);
+    console.log('[Ryvie][Login] Utilisateur manuel sauvegardé avec le nouveau système');
     
     hideManualSetupModal();
     window.electronAPI.navigateTo('index.html');
