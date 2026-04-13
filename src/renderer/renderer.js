@@ -298,8 +298,24 @@ async function switchToRemoteMode(config) {
       }
     } catch (error) {
       console.error('[Ryvie][Renderer] ❌ URL manuelle inaccessible:', error.message);
-      showError('La connexion manuelle à votre Ryvie est impossible. Vérifiez l\'IP du tunnel et que NetBird est connecté.');
+      showError('La connexion à distance à votre Ryvie est impossible. Vérifiez l\'IP du tunnel et que NetBird est connecté.');
       return;
+    }
+  } else if (config && config.mode === 'local' && config.ryvieId) {
+    // Connexion locale - utiliser URL locale par défaut
+    console.log('[Ryvie][Renderer] Mode LOCAL avec URL par défaut');
+    currentConfig = {
+      mode: 'local',
+      ryvieId: config.ryvieId,
+      url: LOCAL_APP_URL,
+      jwtToken: config.jwtToken,
+      domains: config.domains || {}
+    };
+    showConnected();
+    updateUI(currentConfig);
+    maybeAutoOpen();
+    if (!isInitialLoad) {
+      setButtonLoading(false);
     }
   } else if (config && config.domains) {
     // Déterminer l'URL publique selon la présence de domains.app
@@ -438,7 +454,7 @@ function updateUI(config) {
   if (config.mode === 'local') {
     connectionType.innerHTML = '<strong>Mode:</strong> Connexion Locale <span aria-hidden="true">🏠</span>';
   } else if (config.mode === 'manual') {
-    connectionType.innerHTML = '<strong>Mode:</strong> Configuration Manuelle <span aria-hidden="true">🔧</span>';
+    connectionType.innerHTML = '<strong>Mode:</strong> Connexion à distance <span aria-hidden="true">🔧</span>';
   } else if (config.mode === 'remote') {
     connectionType.innerHTML = '<strong>Mode:</strong> Connexion Distante <span aria-hidden="true">🌐</span>';
   } else {

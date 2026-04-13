@@ -710,7 +710,12 @@ ipcMain.handle('authenticate', async (event, credentials) => {
           console.log('[Ryvie][Main] Authentification reussie');
           resolve({
             success: true,
-            token: data.token
+            token: data.token,
+            user: data.user || null,
+            ryvieId: data.user?.uid || null,
+            setupKey: null,
+            tunnelHost: null,
+            domains: []
           });
         } else {
           console.warn('[Ryvie][Main] Authentification echouee');
@@ -1284,7 +1289,7 @@ ipcMain.handle('get-all-users', async () => {
 });
 
 // IPC: Sauvegarder la configuration d'un utilisateur
-ipcMain.handle('save-user-config', async (event, userConfig) => {
+ipcMain.handle('save-user-config', async (event, userConfig, setCurrent = true) => {
   try {
     const usersData = loadUsersData();
     const userKey = userConfig.email || userConfig.uid || 'default-user';
@@ -1304,7 +1309,11 @@ ipcMain.handle('save-user-config', async (event, userConfig) => {
     };
     
     saveUsersData(usersData);
-    setCurrentUserKey(userKey);
+    
+    // Ne changer l'utilisateur courant que si demandé (pas lors du renommage)
+    if (setCurrent) {
+      setCurrentUserKey(userKey);
+    }
     
     console.log('[Ryvie][Main] Configuration utilisateur sauvegardée:', userKey);
     return { success: true };
@@ -1345,6 +1354,7 @@ ipcMain.handle('switch-user', async (event, userKey) => {
     
     // Charger la configuration de l'utilisateur
     const config = {
+      mode: user.mode,
       ryvieId: user.ryvieId,
       setupKey: user.setupKey,
       tunnelHost: user.tunnelHost,

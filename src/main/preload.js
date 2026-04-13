@@ -32,7 +32,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // API multi-utilisateurs
   getAllUsers: () => ipcRenderer.invoke('get-all-users'),
-  saveUserConfig: (userConfig) => ipcRenderer.invoke('save-user-config', userConfig),
+  saveUserConfig: (userConfig, setCurrent) => ipcRenderer.invoke('save-user-config', userConfig, setCurrent),
   switchUser: (userKey) => ipcRenderer.invoke('switch-user', userKey),
   getCurrentUser: () => ipcRenderer.invoke('get-current-user'),
   removeUser: (userKey) => ipcRenderer.invoke('remove-user', userKey)
