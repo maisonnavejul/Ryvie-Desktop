@@ -25,12 +25,12 @@
       <div style="margin: 12px auto; max-width: 60%;">
         <p id="users-error" style="color: #ef4444; font-size: 12px; margin: 0 0 16px; text-align: center; display: none;"></p>
         
-        <div id="users-list" style="display: grid; gap: 10px; margin-bottom: 16px;"></div>
-        
-        <button id="add-user-btn" class="btn btn-secondary" style="width: 100%; font-size: 12px;">
-          <span>Ajouter un compte</span>
-        </button>
+        <div id="users-list" style="display: grid; gap: 10px; max-height: 300px; overflow-y: auto; padding-right: 8px;"></div>
       </div>
+      
+      <button id="add-user-btn" class="btn btn-secondary" style="width: 60%; margin: 0 auto; font-size: 12px;">
+        <span>Ajouter un compte</span>
+      </button>
     </div>
 
     <div id="first-time-section" class="status-section section" style="display: none;">
