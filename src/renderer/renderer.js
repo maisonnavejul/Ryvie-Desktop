@@ -298,7 +298,7 @@ async function switchToRemoteMode(config) {
       }
     } catch (error) {
       console.error('[Ryvie][Renderer] ❌ URL manuelle inaccessible:', error.message);
-      showError('La connexion à distance à votre Ryvie est impossible. Vérifiez l\'IP du tunnel et que NetBird est connecté.');
+      showError('La connexion manuelle à votre Ryvie est impossible. Vérifiez l\'IP du tunnel et que NetBird est connecté.');
       return;
     }
   } else if (config && config.mode === 'local' && config.ryvieId) {
@@ -452,9 +452,9 @@ function stopVpnStatusCheck() {
 function updateUI(config) {
   console.log('[Ryvie][Renderer] 🖥️  Mise à jour UI:', config.mode.toUpperCase(), '- ryvieId:', config.ryvieId);
   if (config.mode === 'local') {
-    connectionType.innerHTML = '<strong>Mode:</strong> Connexion Locale <span aria-hidden="true">🏠</span>';
+    connectionType.innerHTML = '<strong>Mode:</strong> Connexion Automatique <span aria-hidden="true">🏠</span>';
   } else if (config.mode === 'manual') {
-    connectionType.innerHTML = '<strong>Mode:</strong> Connexion à distance <span aria-hidden="true">🔧</span>';
+    connectionType.innerHTML = '<strong>Mode:</strong> Connexion Manuelle <span aria-hidden="true">🔧</span>';
   } else if (config.mode === 'remote') {
     connectionType.innerHTML = '<strong>Mode:</strong> Connexion Distante <span aria-hidden="true">🌐</span>';
   } else {

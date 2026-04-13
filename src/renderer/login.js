@@ -677,7 +677,7 @@ function displayAllUsers() {
       color: ${isManual ? '#d97706' : '#2563eb'};
       flex-shrink: 0;
     `;
-    connectionTypeBadge.textContent = isManual ? 'Distance' : 'Local';
+    connectionTypeBadge.textContent = isManual ? 'Manuelle' : 'Automatique';
     userBtn.appendChild(connectionTypeBadge);
     
     // Bouton de renommage (crayon)
