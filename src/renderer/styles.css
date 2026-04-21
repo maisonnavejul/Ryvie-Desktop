@@ -552,4 +552,8 @@ h1 {
     justify-content: center;
     margin-top: 8px;
   }
+  
+  .rename-modal-buttons {
+    flex-direction: column;
+  }
 }
