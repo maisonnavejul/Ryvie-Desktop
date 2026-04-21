@@ -557,3 +557,10 @@ h1 {
     flex-direction: column;
   }
 }
+
+@media (max-height: 650px) {
+  .login-section-content {
+    transform-origin: top center;
+    transform: scale(clamp(0.45, calc(100vh / 750px), 1));
+  }
+}
