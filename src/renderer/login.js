@@ -617,7 +617,7 @@ function displayAllUsers() {
       width: 100%;
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 8px;
       padding: 12px 16px;
       background: white;
       border: 2px solid #e2e8f0;
@@ -625,29 +625,16 @@ function displayAllUsers() {
       font-size: 13px;
       transition: all 0.2s;
       cursor: pointer;
+      flex-wrap: wrap;
     `;
-    
-    const avatar = document.createElement('div');
-    avatar.className = 'user-avatar';
-    avatar.style.cssText = `
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #667eea, #764ba2);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: white;
-      font-weight: 600;
-      font-size: 16px;
-    `;
-    avatar.textContent = (user.name || user.uid || 'U').charAt(0).toUpperCase();
     
     const userInfo = document.createElement('div');
     userInfo.className = 'user-info';
     userInfo.style.cssText = `
       flex: 1;
       text-align: left;
+      min-width: 0;
+      overflow: hidden;
     `;
     
     const userName = document.createElement('div');
@@ -655,13 +642,26 @@ function displayAllUsers() {
       font-weight: 600;
       color: #0f172a;
       font-size: 14px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     `;
     userName.textContent = user.name || user.uid || 'Utilisateur';
     
     userInfo.appendChild(userName);
     
-    userBtn.appendChild(avatar);
-    userBtn.appendChild(userInfo);
+    // Conteneur pour userInfo + badge (partie gauche)
+    const userLeftSection = document.createElement('div');
+    userLeftSection.className = 'user-left-section';
+    userLeftSection.style.cssText = `
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      min-width: 0;
+    `;
+    
+    userLeftSection.appendChild(userInfo);
     
     // Badge pour le type de connexion (local ou manuel)
     const connectionTypeBadge = document.createElement('span');
@@ -672,13 +672,14 @@ function displayAllUsers() {
       border-radius: 12px;
       font-size: 10px;
       font-weight: 600;
-      margin-right: 8px;
       background: ${isManual ? '#fef3c7' : '#dbeafe'};
       color: ${isManual ? '#d97706' : '#2563eb'};
       flex-shrink: 0;
     `;
     connectionTypeBadge.textContent = isManual ? 'Manuelle' : 'Automatique';
-    userBtn.appendChild(connectionTypeBadge);
+    userLeftSection.appendChild(connectionTypeBadge);
+    
+    userBtn.appendChild(userLeftSection);
     
     // Bouton de renommage (crayon)
     const renameBtn = document.createElement('button');
@@ -722,7 +723,17 @@ function displayAllUsers() {
       showRenameModal(userKey, user.name || user.uid);
     });
     
-    userBtn.appendChild(renameBtn);
+    // Conteneur pour les boutons d'action (rename + delete)
+    const userActionsSection = document.createElement('div');
+    userActionsSection.className = 'user-actions-section';
+    userActionsSection.style.cssText = `
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+    `;
+    
+    userActionsSection.appendChild(renameBtn);
     
     // Bouton de suppression (croix)
     const deleteBtn = document.createElement('button');
@@ -761,7 +772,8 @@ function displayAllUsers() {
       showConfirmDeleteModal(userKey, user.name || user.uid);
     });
     
-    userBtn.appendChild(deleteBtn);
+    userActionsSection.appendChild(deleteBtn);
+    userBtn.appendChild(userActionsSection);
     
     // Event listener pour le switch d'utilisateur
     userBtn.addEventListener('click', async () => {
@@ -782,10 +794,8 @@ function displayAllUsers() {
         console.error('[Ryvie][Login] Erreur switch utilisateur:', error);
         userBtn.disabled = false;
         userBtn.innerHTML = '';
-        userBtn.appendChild(avatar);
-        userBtn.appendChild(userInfo);
-        userBtn.appendChild(renameBtn);
-        userBtn.appendChild(deleteBtn);
+        userBtn.appendChild(userLeftSection);
+        userBtn.appendChild(userActionsSection);
       }
     });
     
@@ -894,12 +904,14 @@ function resetUserButtons() {
     const spinner = btn.querySelector('.btn-spinner');
     if (spinner) {
       btn.innerHTML = '';
-      // Restaurer le contenu original
-      const avatar = btn.querySelector('.user-avatar');
-      const userInfo = btn.querySelector('.user-info');
-      if (avatar && userInfo) {
-        btn.appendChild(avatar);
-        btn.appendChild(userInfo);
+      // Restaurer le contenu original (conteneurs)
+      const userLeftSection = btn.querySelector('.user-left-section');
+      const userActionsSection = btn.querySelector('.user-actions-section');
+      if (userLeftSection) {
+        btn.appendChild(userLeftSection);
+      }
+      if (userActionsSection) {
+        btn.appendChild(userActionsSection);
       }
     }
   });

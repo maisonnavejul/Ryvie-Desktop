@@ -521,3 +521,35 @@ h1 {
   box-shadow: 0 0 0 0 rgba(148, 163, 184, 0.6);
 }
 
+/* Styles spécifiques pour la section de sélection des utilisateurs */
+.users-selection-container {
+  margin: 8px auto;
+  max-width: 85%;
+  min-width: 280px;
+}
+
+.users-list {
+  max-height: min(300px, 40vh);
+}
+
+.add-user-btn {
+  width: min(60%, 280px);
+}
+
+/* Media query pour les boutons utilisateur sur petites largeurs */
+@media (max-width: 425px) {
+  .users-selection-container {
+    max-width: 95%;
+    min-width: auto;
+  }
+  
+  .user-btn {
+    flex-wrap: wrap;
+  }
+  
+  .user-actions-section {
+    width: 100%;
+    justify-content: center;
+    margin-top: 8px;
+  }
+}
