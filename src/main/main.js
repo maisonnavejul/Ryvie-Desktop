@@ -8,6 +8,8 @@ const { exec } = require('child_process');
 app.disableHardwareAcceleration();
 
 const CONFIG_FILE = path.join(app.getPath('userData'), 'ryvie-config.json');
+const USERS_FILE = path.join(app.getPath('userData'), 'ryvie-users.json');
+const CURRENT_USER_FILE = path.join(app.getPath('userData'), 'ryvie-current-user.json');
 const LOCAL_MACHINE_ID_URL = 'http://ryvie.local:3002/api/machine-id';
 const LOCAL_AUTH_URL = 'http://ryvie.local:3002/api/authenticate';
 const LOCAL_DOMAINS_URL = 'http://ryvie.local:3002/api/settings/ryvie-domains';
@@ -708,7 +710,12 @@ ipcMain.handle('authenticate', async (event, credentials) => {
           console.log('[Ryvie][Main] Authentification reussie');
           resolve({
             success: true,
-            token: data.token
+            token: data.token,
+            user: data.user || null,
+            ryvieId: data.user?.uid || null,
+            setupKey: null,
+            tunnelHost: null,
+            domains: []
           });
         } else {
           console.warn('[Ryvie][Main] Authentification echouee');
@@ -861,8 +868,8 @@ ipcMain.handle('check-for-updates', async () => {
   }
 });
 
-// IPC NETBIRD
-ipcMain.handle('setup-netbird', async (event, setupKey, tunnelHost) => {
+// Fonction réutilisable pour configurer NetBird
+async function setupNetbirdInternal(setupKey, tunnelHost, skipTunnelCheck = false) {
   try {
     console.log('[Ryvie][Main] Setup NetBird demande');
     
@@ -884,7 +891,7 @@ ipcMain.handle('setup-netbird', async (event, setupKey, tunnelHost) => {
     console.log('[Ryvie][Main] tunnelHost:', tunnelHost || 'non fourni');
     
     // Vérifier d'abord si NetBird est déjà connecté
-    if (isNetbirdInstalled()) {
+    if (isNetbirdInstalled() && !skipTunnelCheck) {
       const currentStatus = await netbirdStatus();
       console.log('[Ryvie][Main] Statut NetBird actuel:', currentStatus.connected ? 'connecté' : 'déconnecté');
       console.log('[Ryvie][Main] Peers count:', currentStatus.peersCount || 0);
@@ -1041,6 +1048,11 @@ ipcMain.handle('setup-netbird', async (event, setupKey, tunnelHost) => {
     }
     return { success: false, error: error.message };
   }
+}
+
+// IPC NETBIRD
+ipcMain.handle('setup-netbird', async (event, setupKey, tunnelHost) => {
+  return await setupNetbirdInternal(setupKey, tunnelHost);
 });
 
 // IPC NETBIRD STATUS
@@ -1160,4 +1172,324 @@ ipcMain.handle('create-first-user', async (event, userData) => {
       }
     });
   });
+});
+
+// ========== GESTION MULTI-UTILISATEURS ==========
+
+// Charger tous les utilisateurs sauvegardés
+function loadUsersData() {
+  try {
+    if (fs.existsSync(USERS_FILE)) {
+      const data = fs.readFileSync(USERS_FILE, 'utf8');
+      const usersData = JSON.parse(data);
+      
+      // Migration: re-keyer les utilisateurs qui n'ont pas le format ryvieId:uid
+      let needsSave = false;
+      const newUsers = {};
+      for (const [oldKey, user] of Object.entries(usersData.users || {})) {
+        const ryvieId = user.ryvieId || '';
+        const uid = user.uid || user.email || oldKey;
+        const expectedKey = ryvieId ? (ryvieId + ':' + uid) : (user.email || uid);
+        if (oldKey !== expectedKey && ryvieId && !oldKey.includes(':')) {
+          // Ancienne clé sans ryvieId, migrer
+          newUsers[expectedKey] = user;
+          needsSave = true;
+          console.log('[Ryvie][Main] Migration clé utilisateur:', oldKey, '->', expectedKey);
+        } else {
+          newUsers[oldKey] = user;
+        }
+      }
+      
+      if (needsSave) {
+        usersData.users = newUsers;
+        fs.writeFileSync(USERS_FILE, JSON.stringify(usersData, null, 2));
+        // Mettre à jour la clé de l'utilisateur courant aussi
+        const currentKey = getCurrentUserKey();
+        if (currentKey && !newUsers[currentKey]) {
+          // Trouver la nouvelle clé correspondante
+          const matchingUser = Object.entries(newUsers).find(([k, u]) => 
+            (u.email || u.uid) === currentKey
+          );
+          if (matchingUser) {
+            setCurrentUserKey(matchingUser[0]);
+            console.log('[Ryvie][Main] Migration clé utilisateur courant:', currentKey, '->', matchingUser[0]);
+          }
+        }
+      }
+      
+      return usersData;
+    }
+  } catch (error) {
+    console.error('[Ryvie][Main] Erreur lecture utilisateurs:', error);
+  }
+  return { users: {} };
+}
+
+// Sauvegarder les données utilisateurs
+function saveUsersData(usersData) {
+  try {
+    fs.writeFileSync(USERS_FILE, JSON.stringify(usersData, null, 2));
+    return true;
+  } catch (error) {
+    console.error('[Ryvie][Main] Erreur sauvegarde utilisateurs:', error);
+    return false;
+  }
+}
+
+// Obtenir l'utilisateur courant
+function getCurrentUserKey() {
+  try {
+    if (fs.existsSync(CURRENT_USER_FILE)) {
+      const data = fs.readFileSync(CURRENT_USER_FILE, 'utf8');
+      const parsed = JSON.parse(data);
+      return parsed.currentUser || null;
+    }
+  } catch (error) {
+    console.error('[Ryvie][Main] Erreur lecture utilisateur courant:', error);
+  }
+  return null;
+}
+
+// Définir l'utilisateur courant
+function setCurrentUserKey(userKey) {
+  try {
+    fs.writeFileSync(CURRENT_USER_FILE, JSON.stringify({ currentUser: userKey }));
+    return true;
+  } catch (error) {
+    console.error('[Ryvie][Main] Erreur sauvegarde utilisateur courant:', error);
+    return false;
+  }
+}
+
+// Migrer l'ancienne config vers le nouveau système
+function migrateOldConfig() {
+  try {
+    if (fs.existsSync(CONFIG_FILE) && !fs.existsSync(USERS_FILE)) {
+      console.log('[Ryvie][Main] Migration de l\'ancienne configuration...');
+      const oldConfig = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+      
+      if (oldConfig.jwtToken || oldConfig.ryvieId) {
+        const ryvieId = oldConfig.ryvieId || '';
+        const uid = oldConfig.uid || oldConfig.email || 'default-user';
+        const userKey = ryvieId ? (ryvieId + ':' + uid) : (oldConfig.email || uid);
+        const usersData = { users: {} };
+        
+        usersData.users[userKey] = {
+          uid: oldConfig.uid || uid,
+          name: oldConfig.name || uid,
+          email: oldConfig.email || '',
+          role: oldConfig.role || 'User',
+          ryvieId: oldConfig.ryvieId || '',
+          setupKey: oldConfig.setupKey || '',
+          tunnelHost: oldConfig.tunnelHost || '',
+          jwtToken: oldConfig.jwtToken || '',
+          lastLogin: new Date().toISOString(),
+          domains: oldConfig.domains || [],
+          mode: oldConfig.mode || 'local'
+        };
+        
+        saveUsersData(usersData);
+        setCurrentUserKey(userKey);
+        
+        // Sauvegarder l'ancienne config en backup
+        fs.renameSync(CONFIG_FILE, CONFIG_FILE + '.backup');
+        console.log('[Ryvie][Main] Migration terminée avec succès');
+        return true;
+      }
+    }
+  } catch (error) {
+    console.error('[Ryvie][Main] Erreur migration:', error);
+  }
+  return false;
+}
+
+// IPC: Récupérer tous les utilisateurs
+ipcMain.handle('get-all-users', async () => {
+  try {
+    // Tenter la migration si nécessaire
+    migrateOldConfig();
+    
+    const usersData = loadUsersData();
+    const users = Object.entries(usersData.users || {}).map(([key, user]) => ({
+      userKey: key,
+      uid: user.uid,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      ryvieId: user.ryvieId || '',
+      lastLogin: user.lastLogin,
+      mode: user.mode || 'local'
+    }));
+    
+    return { success: true, users };
+  } catch (error) {
+    console.error('[Ryvie][Main] Erreur get-all-users:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// IPC: Sauvegarder la configuration d'un utilisateur
+ipcMain.handle('save-user-config', async (event, userConfig, setCurrent = true) => {
+  try {
+    const usersData = loadUsersData();
+    const ryvieId = userConfig.ryvieId || '';
+    const uid = userConfig.uid || userConfig.email || 'default-user';
+    const userKey = ryvieId ? (ryvieId + ':' + uid) : (userConfig.email || uid);
+    
+    usersData.users[userKey] = {
+      uid: userConfig.uid,
+      name: userConfig.name || userConfig.uid,
+      email: userConfig.email || '',
+      role: userConfig.role || 'User',
+      ryvieId: userConfig.ryvieId || '',
+      setupKey: userConfig.setupKey || '',
+      tunnelHost: userConfig.tunnelHost || '',
+      jwtToken: userConfig.jwtToken || '',
+      lastLogin: new Date().toISOString(),
+      domains: userConfig.domains || [],
+      mode: userConfig.mode || 'local'
+    };
+    
+    saveUsersData(usersData);
+    
+    // Ne changer l'utilisateur courant que si demandé (pas lors du renommage)
+    if (setCurrent) {
+      setCurrentUserKey(userKey);
+    }
+    
+    console.log('[Ryvie][Main] Configuration utilisateur sauvegardée:', userKey);
+    return { success: true };
+  } catch (error) {
+    console.error('[Ryvie][Main] Erreur save-user-config:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// IPC: Renommer un utilisateur (ne modifie que le champ name)
+ipcMain.handle('rename-user', async (event, userKey, newName) => {
+  try {
+    const usersData = loadUsersData();
+    const user = usersData.users[userKey];
+    if (!user) {
+      return { success: false, error: 'Utilisateur non trouvé' };
+    }
+    user.name = newName;
+    saveUsersData(usersData);
+    console.log('[Ryvie][Main] Utilisateur renommé:', userKey, '->', newName);
+    return { success: true };
+  } catch (error) {
+    console.error('[Ryvie][Main] Erreur rename-user:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// IPC: Changer d'utilisateur
+ipcMain.handle('switch-user', async (event, userKey) => {
+  try {
+    const usersData = loadUsersData();
+    const user = usersData.users[userKey];
+    
+    if (!user) {
+      return { success: false, error: 'Utilisateur non trouvé' };
+    }
+    
+    // Tenter de reconnecter NetBird si une setupKey est disponible
+    if (user.setupKey) {
+      console.log('[Ryvie][Main] setupKey disponible, tentative de reconnexion NetBird...');
+      
+      const netbirdResult = await setupNetbirdInternal(user.setupKey, user.tunnelHost || null, user.mode === 'local');
+      
+      if (!netbirdResult.success) {
+        console.warn('[Ryvie][Main] Échec reconnexion NetBird:', netbirdResult.error);
+        if (user.mode === 'manual') {
+          return { 
+            success: false, 
+            error: 'Impossible de se reconnecter. La clé de setup a peut-être expiré. Créez une nouvelle connexion manuelle avec une nouvelle clé.'
+          };
+        }
+        // En mode local, on continue même si NetBird échoue
+      } else {
+        console.log('[Ryvie][Main] Reconnexion NetBird réussie');
+      }
+    }
+    
+    setCurrentUserKey(userKey);
+    
+    // Charger la configuration de l'utilisateur
+    const config = {
+      name: user.name || user.uid || 'Mon Ryvie',
+      mode: user.mode,
+      ryvieId: user.ryvieId,
+      setupKey: user.setupKey,
+      tunnelHost: user.tunnelHost,
+      url: LOCAL_APP_URL,
+      jwtToken: user.jwtToken,
+      domains: user.domains
+    };
+    
+    console.log('[Ryvie][Main] Switch vers utilisateur:', userKey);
+    return { success: true, config };
+  } catch (error) {
+    console.error('[Ryvie][Main] Erreur switch-user:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// IPC: Obtenir l'utilisateur courant
+ipcMain.handle('get-current-user', async () => {
+  try {
+    const userKey = getCurrentUserKey();
+    
+    if (!userKey) {
+      return { success: true, currentUser: null };
+    }
+    
+    const usersData = loadUsersData();
+    const user = usersData.users[userKey];
+    
+    if (!user) {
+      return { success: true, currentUser: null };
+    }
+    
+    return { 
+      success: true, 
+      currentUser: {
+        uid: user.uid,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        lastLogin: user.lastLogin,
+        mode: user.mode || 'local'
+      }
+    };
+  } catch (error) {
+    console.error('[Ryvie][Main] Erreur get-current-user:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// IPC: Supprimer un utilisateur
+ipcMain.handle('remove-user', async (event, userKey) => {
+  try {
+    const usersData = loadUsersData();
+    
+    if (!usersData.users[userKey]) {
+      return { success: false, error: 'Utilisateur non trouvé' };
+    }
+    
+    delete usersData.users[userKey];
+    saveUsersData(usersData);
+    
+    // Si c'était l'utilisateur courant, le supprimer du fichier courant
+    const currentUserKey = getCurrentUserKey();
+    if (currentUserKey === userKey) {
+      fs.unlinkSync(CURRENT_USER_FILE);
+    }
+    
+    console.log('[Ryvie][Main] Utilisateur supprimé:', userKey);
+    return { success: true };
+  } catch (error) {
+    console.error('[Ryvie][Main] Erreur remove-user:', error);
+    return { success: false, error: error.message };
+  }
 });

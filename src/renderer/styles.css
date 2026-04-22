@@ -37,7 +37,8 @@ body {
   padding: 4vh 6vw;
   width: 85%;
   max-width: 800px;
-  max-height: 90vh;
+  max-height: 95vh;
+  min-height: 80vh;
   border: 1px solid rgba(255, 255, 255, 0.2);
   animation: fadeInUp 0.6s ease-out;
   overflow: hidden;
@@ -60,10 +61,11 @@ body {
 
 .header {
   text-align: center;
-  margin-bottom: 3vh;
+  margin-bottom: clamp(8px, 1.5vh, 16px);
   position: relative;
   flex-shrink: 0;
 }
+
 
 .logo {
   width: min(110px, 18vh);
@@ -73,6 +75,18 @@ body {
   box-shadow: 0 15px 40px rgba(102, 126, 234, 0.35);
   transition: transform 0.3s ease;
   animation: float 3s ease-in-out infinite;
+}
+
+.logo.logo-corner {
+  position: absolute;
+  top: clamp(16px, 3vh, 30px);
+  left: clamp(16px, 3vw, 30px);
+  width: clamp(60px, 10vh, 86px);
+  height: clamp(60px, 10vh, 86px);
+  margin-bottom: 0;
+  border-radius: 18px;
+  box-shadow: 0 10px 30px rgba(102, 126, 234, 0.35);
+  z-index: 2;
 }
 
 .logo:hover {
@@ -97,11 +111,14 @@ h1 {
 
 .status-section {
   text-align: center;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+  flex: 1 1 0;
   min-height: 0;
+  display: none;
+}
+
+.status-section.active {
+  display: grid;
+  place-items: center;
 }
 
 .status-badge {
@@ -521,3 +538,162 @@ h1 {
   box-shadow: 0 0 0 0 rgba(148, 163, 184, 0.6);
 }
 
+/* Styles spécifiques pour la section de sélection des utilisateurs */
+.users-selection-container {
+  margin: 0 auto;
+  max-width: 600px;
+  width: 88%;
+  min-width: 280px;
+}
+
+.users-list {
+  max-height: min(360px, 45vh);
+  overflow-y: auto;
+}
+
+.add-user-btn {
+  width: min(70%, 340px);
+  margin-top: clamp(16px, 3vh, 28px);
+  padding: clamp(12px, 2.2vh, 18px) clamp(20px, 3vw, 32px);
+  font-size: clamp(14px, 2.4vh, 17px) !important;
+  border-radius: 12px;
+}
+
+/* Media query pour les boutons utilisateur sur petites largeurs */
+@media (max-width: 425px) {
+  .users-selection-container {
+    max-width: 95%;
+    min-width: auto;
+  }
+  
+  .user-btn {
+    flex-wrap: wrap;
+  }
+  
+  .user-actions-section {
+    width: 100%;
+    justify-content: center;
+    margin-top: 8px;
+  }
+  
+  .rename-modal-buttons {
+    flex-direction: column;
+  }
+}
+
+@media (max-height: 650px) {
+  .login-section-content {
+    transform-origin: top center;
+    transform: scale(clamp(0.45, calc(100vh / 750px), 1));
+  }
+}
+
+/* ── Login form responsive classes ── */
+
+.login-form-container {
+  margin: 0 auto;
+  max-width: 600px;
+  width: 88%;
+}
+
+.form-group {
+  margin-bottom: clamp(18px, 3.5vh, 32px);
+}
+
+.form-label {
+  display: block;
+  text-align: left;
+  margin-bottom: clamp(6px, 1.2vh, 12px);
+  color: #475569;
+  font-size: clamp(15px, 2.8vh, 19px);
+  font-weight: 600;
+}
+
+.form-input {
+  width: 100%;
+  padding: clamp(14px, 2.6vh, 20px) clamp(16px, 2.2vw, 22px);
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: clamp(16px, 3vh, 20px);
+  font-family: 'Inter', sans-serif;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+  background: white;
+  outline: none;
+}
+
+.form-input:focus {
+  border-color: #0ea5e9;
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+}
+
+.form-input::placeholder {
+  color: #94a3b8;
+}
+
+.form-separator {
+  display: flex;
+  align-items: center;
+  margin: clamp(20px, 3.5vh, 36px) 0;
+}
+
+.form-separator-line {
+  flex: 1;
+  height: 1px;
+  background: #e2e8f0;
+}
+
+.form-separator-text {
+  padding: 0 clamp(14px, 2.2vw, 22px);
+  color: #475569;
+  font-size: clamp(14px, 2.6vh, 18px);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.method-tabs {
+  display: flex;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  margin-bottom: clamp(20px, 3.5vh, 34px);
+  overflow: hidden;
+}
+
+.method-tab {
+  flex: 1;
+  padding: clamp(14px, 2.6vh, 20px) clamp(16px, 2.2vw, 22px);
+  border: none;
+  font-size: clamp(15px, 2.8vh, 19px);
+  font-weight: 500;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: white;
+  color: #475569;
+}
+
+.method-tab.active {
+  background: linear-gradient(135deg, #1baced, #1690ea);
+  color: white;
+  font-weight: 600;
+}
+
+.method-tab:first-child {
+  border-right: 1px solid #e2e8f0;
+}
+
+.login-submit-btn {
+  width: 100%;
+  padding: clamp(16px, 2.8vh, 22px);
+  border: none;
+  border-radius: 12px;
+  font-size: clamp(16px, 3vh, 20px);
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  background: linear-gradient(135deg, #1baced, #1690ea);
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 14px rgba(27, 172, 237, 0.3);
+  margin-top: clamp(8px, 2vh, 18px);
+}
