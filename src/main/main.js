@@ -1181,7 +1181,43 @@ function loadUsersData() {
   try {
     if (fs.existsSync(USERS_FILE)) {
       const data = fs.readFileSync(USERS_FILE, 'utf8');
-      return JSON.parse(data);
+      const usersData = JSON.parse(data);
+      
+      // Migration: re-keyer les utilisateurs qui n'ont pas le format ryvieId:uid
+      let needsSave = false;
+      const newUsers = {};
+      for (const [oldKey, user] of Object.entries(usersData.users || {})) {
+        const ryvieId = user.ryvieId || '';
+        const uid = user.uid || user.email || oldKey;
+        const expectedKey = ryvieId ? (ryvieId + ':' + uid) : (user.email || uid);
+        if (oldKey !== expectedKey && ryvieId && !oldKey.includes(':')) {
+          // Ancienne clé sans ryvieId, migrer
+          newUsers[expectedKey] = user;
+          needsSave = true;
+          console.log('[Ryvie][Main] Migration clé utilisateur:', oldKey, '->', expectedKey);
+        } else {
+          newUsers[oldKey] = user;
+        }
+      }
+      
+      if (needsSave) {
+        usersData.users = newUsers;
+        fs.writeFileSync(USERS_FILE, JSON.stringify(usersData, null, 2));
+        // Mettre à jour la clé de l'utilisateur courant aussi
+        const currentKey = getCurrentUserKey();
+        if (currentKey && !newUsers[currentKey]) {
+          // Trouver la nouvelle clé correspondante
+          const matchingUser = Object.entries(newUsers).find(([k, u]) => 
+            (u.email || u.uid) === currentKey
+          );
+          if (matchingUser) {
+            setCurrentUserKey(matchingUser[0]);
+            console.log('[Ryvie][Main] Migration clé utilisateur courant:', currentKey, '->', matchingUser[0]);
+          }
+        }
+      }
+      
+      return usersData;
     }
   } catch (error) {
     console.error('[Ryvie][Main] Erreur lecture utilisateurs:', error);
@@ -1233,12 +1269,14 @@ function migrateOldConfig() {
       const oldConfig = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
       
       if (oldConfig.jwtToken || oldConfig.ryvieId) {
-        const userKey = oldConfig.email || oldConfig.uid || 'default-user';
+        const ryvieId = oldConfig.ryvieId || '';
+        const uid = oldConfig.uid || oldConfig.email || 'default-user';
+        const userKey = ryvieId ? (ryvieId + ':' + uid) : (oldConfig.email || uid);
         const usersData = { users: {} };
         
         usersData.users[userKey] = {
-          uid: oldConfig.uid || userKey,
-          name: oldConfig.name || userKey,
+          uid: oldConfig.uid || uid,
+          name: oldConfig.name || uid,
           email: oldConfig.email || '',
           role: oldConfig.role || 'User',
           ryvieId: oldConfig.ryvieId || '',
@@ -1272,11 +1310,13 @@ ipcMain.handle('get-all-users', async () => {
     migrateOldConfig();
     
     const usersData = loadUsersData();
-    const users = Object.values(usersData.users || {}).map(user => ({
+    const users = Object.entries(usersData.users || {}).map(([key, user]) => ({
+      userKey: key,
       uid: user.uid,
       name: user.name,
       email: user.email,
       role: user.role,
+      ryvieId: user.ryvieId || '',
       lastLogin: user.lastLogin,
       mode: user.mode || 'local'
     }));
@@ -1292,7 +1332,9 @@ ipcMain.handle('get-all-users', async () => {
 ipcMain.handle('save-user-config', async (event, userConfig, setCurrent = true) => {
   try {
     const usersData = loadUsersData();
-    const userKey = userConfig.email || userConfig.uid || 'default-user';
+    const ryvieId = userConfig.ryvieId || '';
+    const uid = userConfig.uid || userConfig.email || 'default-user';
+    const userKey = ryvieId ? (ryvieId + ':' + uid) : (userConfig.email || uid);
     
     usersData.users[userKey] = {
       uid: userConfig.uid,
@@ -1323,6 +1365,24 @@ ipcMain.handle('save-user-config', async (event, userConfig, setCurrent = true) 
   }
 });
 
+// IPC: Renommer un utilisateur (ne modifie que le champ name)
+ipcMain.handle('rename-user', async (event, userKey, newName) => {
+  try {
+    const usersData = loadUsersData();
+    const user = usersData.users[userKey];
+    if (!user) {
+      return { success: false, error: 'Utilisateur non trouvé' };
+    }
+    user.name = newName;
+    saveUsersData(usersData);
+    console.log('[Ryvie][Main] Utilisateur renommé:', userKey, '->', newName);
+    return { success: true };
+  } catch (error) {
+    console.error('[Ryvie][Main] Erreur rename-user:', error);
+    return { success: false, error: error.message };
+  }
+});
+
 // IPC: Changer d'utilisateur
 ipcMain.handle('switch-user', async (event, userKey) => {
   try {
@@ -1333,27 +1393,31 @@ ipcMain.handle('switch-user', async (event, userKey) => {
       return { success: false, error: 'Utilisateur non trouvé' };
     }
     
-    // Si c'est une connexion manuelle, tenter de reconnecter NetBird
-    if (user.mode === 'manual' && user.setupKey && user.tunnelHost) {
-      console.log('[Ryvie][Main] Connexion manuelle détectée, tentative de reconnexion NetBird...');
+    // Tenter de reconnecter NetBird si une setupKey est disponible
+    if (user.setupKey) {
+      console.log('[Ryvie][Main] setupKey disponible, tentative de reconnexion NetBird...');
       
-      const netbirdResult = await setupNetbirdInternal(user.setupKey, user.tunnelHost, true);
+      const netbirdResult = await setupNetbirdInternal(user.setupKey, user.tunnelHost || null, user.mode === 'local');
       
       if (!netbirdResult.success) {
-        console.error('[Ryvie][Main] Échec reconnexion NetBird:', netbirdResult.error);
-        return { 
-          success: false, 
-          error: 'Impossible de se reconnecter. La clé de setup a peut-être expiré. Créez une nouvelle connexion manuelle avec une nouvelle clé.'
-        };
+        console.warn('[Ryvie][Main] Échec reconnexion NetBird:', netbirdResult.error);
+        if (user.mode === 'manual') {
+          return { 
+            success: false, 
+            error: 'Impossible de se reconnecter. La clé de setup a peut-être expiré. Créez une nouvelle connexion manuelle avec une nouvelle clé.'
+          };
+        }
+        // En mode local, on continue même si NetBird échoue
+      } else {
+        console.log('[Ryvie][Main] Reconnexion NetBird réussie');
       }
-      
-      console.log('[Ryvie][Main] Reconnexion NetBird réussie pour connexion manuelle');
     }
     
     setCurrentUserKey(userKey);
     
     // Charger la configuration de l'utilisateur
     const config = {
+      name: user.name || user.uid || 'Mon Ryvie',
       mode: user.mode,
       ryvieId: user.ryvieId,
       setupKey: user.setupKey,

@@ -119,42 +119,18 @@ function setConnectionMethod(method) {
   
   if (method === 'local') {
     // Activer l'onglet Locale
-    if (methodLocalTab) {
-      methodLocalTab.style.background = 'linear-gradient(135deg, #1baced, #1690ea)';
-      methodLocalTab.style.color = 'white';
-      methodLocalTab.style.fontWeight = '600';
-    }
-    if (methodManualTab) {
-      methodManualTab.style.background = 'white';
-      methodManualTab.style.color = '#94a3b8';
-      methodManualTab.style.fontWeight = '500';
-    }
+    if (methodLocalTab) methodLocalTab.classList.add('active');
+    if (methodManualTab) methodManualTab.classList.remove('active');
     // Afficher les champs locaux
-    if (localFields) {
-      localFields.style.display = 'block';
-    }
-    if (manualFields) {
-      manualFields.style.display = 'none';
-    }
+    if (localFields) localFields.style.display = 'block';
+    if (manualFields) manualFields.style.display = 'none';
   } else {
     // Activer l'onglet Manuelle
-    if (methodLocalTab) {
-      methodLocalTab.style.background = 'white';
-      methodLocalTab.style.color = '#94a3b8';
-      methodLocalTab.style.fontWeight = '500';
-    }
-    if (methodManualTab) {
-      methodManualTab.style.background = 'linear-gradient(135deg, #1baced, #1690ea)';
-      methodManualTab.style.color = 'white';
-      methodManualTab.style.fontWeight = '600';
-    }
+    if (methodLocalTab) methodLocalTab.classList.remove('active');
+    if (methodManualTab) methodManualTab.classList.add('active');
     // Afficher les champs manuels
-    if (localFields) {
-      localFields.style.display = 'none';
-    }
-    if (manualFields) {
-      manualFields.style.display = 'block';
-    }
+    if (localFields) localFields.style.display = 'none';
+    if (manualFields) manualFields.style.display = 'block';
   }
   
   // Cacher l'erreur lors du changement de méthode
@@ -286,7 +262,38 @@ async function handleLogin() {
         return;
       }
       
-      console.log('[Ryvie][Login] Authentification réussie, création du profil...');
+      console.log('[Ryvie][Login] Authentification réussie, récupération des domaines...');
+      
+      // Récupérer les domaines, setupKey et tunnelHost via le JWT
+      const domainsResult = await window.electronAPI.getDomains(authResult.token);
+      
+      let setupKey = null;
+      let tunnelHost = null;
+      let domains = {};
+      let ryvieId = authResult.ryvieId;
+      
+      if (domainsResult.success && domainsResult.data) {
+        setupKey = domainsResult.data.setupKey || null;
+        tunnelHost = domainsResult.data.tunnelHost || null;
+        domains = domainsResult.data.domains || {};
+        ryvieId = domainsResult.data.ryvieId || ryvieId;
+        console.log('[Ryvie][Login] Domaines récupérés, setupKey:', setupKey ? 'présent' : 'absent');
+      } else {
+        console.warn('[Ryvie][Login] Impossible de récupérer les domaines, continuation sans');
+      }
+      
+      // Configurer NetBird si une setupKey est disponible
+      if (setupKey) {
+        console.log('[Ryvie][Login] Configuration de NetBird...');
+        const netbirdResult = await window.electronAPI.setupNetbird(setupKey, tunnelHost);
+        if (netbirdResult.success) {
+          console.log('[Ryvie][Login] NetBird configuré avec succès');
+        } else {
+          console.warn('[Ryvie][Login] Erreur configuration NetBird:', netbirdResult.error);
+        }
+      } else {
+        console.warn('[Ryvie][Login] Pas de setupKey, NetBird non configuré');
+      }
       
       // Créer le profil utilisateur avec le nom personnalisé
       const userConfig = {
@@ -294,11 +301,11 @@ async function handleLogin() {
         name: profileName || uid,
         email: '',
         role: authResult.role || 'User',
-        ryvieId: authResult.ryvieId,
-        setupKey: authResult.setupKey,
-        tunnelHost: authResult.tunnelHost,
+        ryvieId: ryvieId,
+        setupKey: setupKey,
+        tunnelHost: tunnelHost,
         jwtToken: authResult.token,
-        domains: authResult.domains,
+        domains: domains,
         mode: 'local'
       };
       
@@ -307,10 +314,11 @@ async function handleLogin() {
       
       // Sauvegarder la configuration
       const config = {
+        name: profileName || uid,
         uid: uid,
         url: LOCAL_APP_URL,
         jwtToken: authResult.token,
-        domains: authResult.domains
+        domains: domains
       };
       await window.electronAPI.saveConfig(config);
       console.log('[Ryvie][Login] Configuration sauvegardée');
@@ -379,6 +387,7 @@ async function handleLogin() {
       
       // Sauvegarder la configuration
       const config = {
+        name: profileName,
         uid: profileName,
         url: LOCAL_APP_URL,
         jwtToken: '',
@@ -401,31 +410,6 @@ async function handleLogin() {
       loginBtn.classList.remove('loading');
       loginBtn.innerHTML = '<span>Se connecter</span>';
     }
-  }
-}
-
-function showLoginForm() {
-  hideLoading();
-  setCompactHeader(false);
-  if (headerTitle) {
-    headerTitle.textContent = 'Créer un profil';
-  }
-  if (firstTimeSection) {
-    firstTimeSection.classList.remove('visible');
-    firstTimeSection.style.display = 'none';
-  }
-  if (usersSelectionSection) {
-    usersSelectionSection.classList.remove('visible');
-    usersSelectionSection.style.display = 'none';
-  }
-  if (loginSection) {
-    loginSection.style.display = 'block';
-    requestAnimationFrame(() => loginSection.classList.add('visible'));
-  }
-  
-  // Réinitialiser le champ Nom du profil à "Mon Ryvie"
-  if (profileNameInput) {
-    profileNameInput.value = 'Mon Ryvie';
   }
 }
 
@@ -461,21 +445,28 @@ async function checkFirstTimeSetup() {
 
 function hideLoading() {
   if (loadingSection) {
-    loadingSection.classList.remove('visible');
-    loadingSection.style.display = 'none';
+    loadingSection.classList.remove('visible', 'active');
+  }
+}
+
+function activateSection(sectionEl) {
+  const allSections = [loadingSection, loginSection, firstTimeSection, usersSelectionSection];
+  allSections.forEach(s => {
+    if (s) s.classList.remove('visible', 'active');
+  });
+  if (sectionEl) {
+    sectionEl.classList.add('active');
+    requestAnimationFrame(() => sectionEl.classList.add('visible'));
   }
 }
 
 function setCompactHeader(compact) {
-  const logo = document.querySelector('.header .logo');
   const title = document.querySelector('.header h1');
   const header = document.querySelector('.header');
   if (compact) {
-    if (logo) { logo.style.width = '50px'; logo.style.height = '50px'; logo.style.marginBottom = '4px'; }
     if (title) { title.style.fontSize = '18px'; }
     if (header) { header.style.marginBottom = '6px'; }
   } else {
-    if (logo) { logo.style.width = ''; logo.style.height = ''; logo.style.marginBottom = ''; }
     if (title) { title.style.fontSize = ''; }
     if (header) { header.style.marginBottom = ''; }
   }
@@ -484,14 +475,23 @@ function setCompactHeader(compact) {
 function showFirstTimeSetup() {
   hideLoading();
   setCompactHeader(true);
-  if (loginSection) {
-    loginSection.classList.remove('visible');
-    loginSection.style.display = 'none';
+  activateSection(firstTimeSection);
+}
+
+function getUniqueProfileName() {
+  const baseName = 'Mon Ryvie';
+  const usersArray = Array.isArray(allUsers) ? allUsers : Object.values(allUsers);
+  const existingNames = usersArray.map(u => u.name || u.uid || '');
+  
+  if (!existingNames.includes(baseName)) {
+    return baseName;
   }
-  if (firstTimeSection) {
-    firstTimeSection.style.display = 'block';
-    requestAnimationFrame(() => firstTimeSection.classList.add('visible'));
+  
+  let i = 2;
+  while (existingNames.includes(baseName + ' ' + i)) {
+    i++;
   }
+  return baseName + ' ' + i;
 }
 
 function showLoginForm() {
@@ -500,22 +500,11 @@ function showLoginForm() {
   if (headerTitle) {
     headerTitle.textContent = 'Créer un profil';
   }
-  if (firstTimeSection) {
-    firstTimeSection.classList.remove('visible');
-    firstTimeSection.style.display = 'none';
-  }
-  if (usersSelectionSection) {
-    usersSelectionSection.classList.remove('visible');
-    usersSelectionSection.style.display = 'none';
-  }
-  if (loginSection) {
-    loginSection.style.display = 'block';
-    requestAnimationFrame(() => loginSection.classList.add('visible'));
-  }
+  activateSection(loginSection);
   
-  // Réinitialiser le champ Nom du profil à "Mon Ryvie"
+  // Réinitialiser le champ Nom du profil avec un nom unique
   if (profileNameInput) {
-    profileNameInput.value = 'Mon Ryvie';
+    profileNameInput.value = getUniqueProfileName();
   }
 }
 
@@ -528,40 +517,18 @@ function showSection(sectionId) {
     if (sectionId === 'login-section') {
       headerTitle.textContent = 'Créer un profil';
     } else if (sectionId === 'users-selection-section') {
-      headerTitle.textContent = 'Choisir un compte';
+      headerTitle.textContent = 'Choisir un Ryvie';
     }
   }
   
-  // Masquer toutes les sections
-  if (firstTimeSection) {
-    firstTimeSection.classList.remove('visible');
-    firstTimeSection.style.display = 'none';
-  }
-  if (usersSelectionSection) {
-    usersSelectionSection.classList.remove('visible');
-    usersSelectionSection.style.display = 'none';
-  }
-  if (loginSection) {
-    loginSection.classList.remove('visible');
-    loginSection.style.display = 'none';
-  }
-  
-  // Afficher la section demandée
   if (sectionId === 'login-section') {
-    if (loginSection) {
-      loginSection.style.display = 'block';
-      requestAnimationFrame(() => loginSection.classList.add('visible'));
-    }
-    
-    // Réinitialiser le champ Nom du profil à "Mon Ryvie"
+    activateSection(loginSection);
+    // Réinitialiser le champ Nom du profil avec un nom unique
     if (profileNameInput) {
-      profileNameInput.value = 'Mon Ryvie';
+      profileNameInput.value = getUniqueProfileName();
     }
   } else if (sectionId === 'users-selection-section') {
-    if (usersSelectionSection) {
-      usersSelectionSection.style.display = 'block';
-      requestAnimationFrame(() => usersSelectionSection.classList.add('visible'));
-    }
+    activateSection(usersSelectionSection);
   }
 }
 
@@ -570,24 +537,9 @@ function loadAndShowUsers(users) {
   hideLoading();
   setCompactHeader(false);
   if (headerTitle) {
-    headerTitle.textContent = 'Choisir un compte';
+    headerTitle.textContent = 'Choisir un Ryvie';
   }
-  
-  // Masquer les autres sections
-  if (firstTimeSection) {
-    firstTimeSection.classList.remove('visible');
-    firstTimeSection.style.display = 'none';
-  }
-  if (loginSection) {
-    loginSection.classList.remove('visible');
-    loginSection.style.display = 'none';
-  }
-  
-  // Afficher la section utilisateurs
-  if (usersSelectionSection) {
-    usersSelectionSection.style.display = 'block';
-    requestAnimationFrame(() => usersSelectionSection.classList.add('visible'));
-  }
+  activateSection(usersSelectionSection);
   
   // Afficher les utilisateurs
   displayAllUsers();
@@ -610,19 +562,19 @@ function displayAllUsers() {
   }
   
   usersArray.forEach(user => {
-    const userKey = user.email || user.uid;
+    const userKey = user.userKey || user.email || user.uid;
     const userBtn = document.createElement('button');
     userBtn.className = 'btn user-select-btn';
     userBtn.style.cssText = `
       width: 100%;
       display: flex;
       align-items: center;
-      gap: 8px;
-      padding: 12px 16px;
+      gap: 12px;
+      padding: 18px 22px;
       background: white;
       border: 2px solid #e2e8f0;
-      border-radius: 12px;
-      font-size: 13px;
+      border-radius: 14px;
+      font-size: 16px;
       transition: all 0.2s;
       cursor: pointer;
       flex-wrap: wrap;
@@ -641,12 +593,12 @@ function displayAllUsers() {
     userName.style.cssText = `
       font-weight: 600;
       color: #0f172a;
-      font-size: 14px;
+      font-size: 17px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     `;
-    userName.textContent = user.name || user.uid || 'Utilisateur';
+    userName.textContent = user.name || user.uid || 'Mon Ryvie';
     
     userInfo.appendChild(userName);
     
@@ -668,9 +620,9 @@ function displayAllUsers() {
     const isManual = user.mode === 'manual';
     connectionTypeBadge.style.cssText = `
       display: inline-block;
-      padding: 2px 8px;
-      border-radius: 12px;
-      font-size: 10px;
+      padding: 5px 12px;
+      border-radius: 14px;
+      font-size: 13px;
       font-weight: 600;
       background: ${isManual ? '#fef3c7' : '#dbeafe'};
       color: ${isManual ? '#d97706' : '#2563eb'};
@@ -690,20 +642,20 @@ function displayAllUsers() {
       </svg>
     `;
     renameBtn.style.cssText = `
-      width: 28px;
-      height: 28px;
+      width: 34px;
+      height: 34px;
       border-radius: 50%;
       border: none;
       background: #f1f5f9;
       color: #64748b;
-      font-size: 14px;
+      font-size: 16px;
       line-height: 1;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
       transition: all 0.2s;
-      margin-left: 8px;
+      margin-left: 4px;
       flex-shrink: 0;
     `;
     renameBtn.title = 'Renommer ce profil';
@@ -739,23 +691,23 @@ function displayAllUsers() {
     const deleteBtn = document.createElement('button');
     deleteBtn.innerHTML = '&times;';
     deleteBtn.style.cssText = `
-      width: 28px;
-      height: 28px;
+      width: 34px;
+      height: 34px;
       border-radius: 50%;
       border: none;
       background: #f1f5f9;
       color: #64748b;
-      font-size: 18px;
+      font-size: 20px;
       line-height: 1;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
       transition: all 0.2s;
-      margin-left: 8px;
+      margin-left: 4px;
       flex-shrink: 0;
     `;
-    deleteBtn.title = 'Supprimer cet utilisateur';
+    deleteBtn.title = 'Supprimer cet appareil';
     
     deleteBtn.addEventListener('mouseenter', () => {
       deleteBtn.style.background = '#ef4444';
@@ -786,13 +738,22 @@ function displayAllUsers() {
       cancelCurrentConnection();
       
       userBtn.disabled = true;
-      userBtn.innerHTML = '<span class="btn-spinner"></span><span>Connexion...</span>';
+      userBtn.style.justifyContent = 'center';
+      userBtn.style.borderColor = '#667eea';
+      userBtn.style.background = 'linear-gradient(135deg, #f0f4ff, #e8eeff)';
+      userBtn.innerHTML = `
+        <span class="btn-spinner" style="width: 20px; height: 20px; border-width: 2.5px;"></span>
+        <span style="font-weight: 600; color: #4f46e5; font-size: 15px;">Connexion à ${user.name || user.uid || 'Mon Ryvie'}...</span>
+      `;
       
       try {
         await switchUser(userKey);
       } catch (error) {
         console.error('[Ryvie][Login] Erreur switch utilisateur:', error);
         userBtn.disabled = false;
+        userBtn.style.justifyContent = '';
+        userBtn.style.borderColor = '#e2e8f0';
+        userBtn.style.background = 'white';
         userBtn.innerHTML = '';
         userBtn.appendChild(userLeftSection);
         userBtn.appendChild(userActionsSection);
@@ -849,7 +810,7 @@ async function switchUser(userKey) {
     if (!switchResult.success) {
       console.error('[Ryvie][Login] Erreur switch utilisateur:', switchResult.error);
       if (usersError) {
-        usersError.textContent = 'Erreur lors du changement d\'utilisateur: ' + switchResult.error;
+        usersError.textContent = 'Erreur lors du changement d\'appareil: ' + switchResult.error;
         usersError.style.display = 'block';
       }
       return;
@@ -869,7 +830,7 @@ async function switchUser(userKey) {
     }
     console.error('[Ryvie][Login] Erreur switch utilisateur:', error);
     if (usersError) {
-      usersError.textContent = 'Erreur lors du changement d\'utilisateur: ' + error.message;
+      usersError.textContent = 'Erreur lors du changement d\'appareil: ' + error.message;
       usersError.style.display = 'block';
     }
   } finally {
@@ -920,7 +881,7 @@ function resetUserButtons() {
 function showConfirmDeleteModal(userKey, userName) {
   userToDelete = { key: userKey, name: userName };
   if (confirmDeleteMessage) {
-    confirmDeleteMessage.textContent = `Voulez-vous vraiment supprimer l'utilisateur "${userName}" ?`;
+    confirmDeleteMessage.textContent = `Voulez-vous vraiment supprimer l'appareil "${userName}" ?`;
   }
   if (confirmDeleteModal) {
     confirmDeleteModal.style.display = 'flex';
@@ -937,7 +898,7 @@ function hideConfirmDeleteModal() {
 
 function showRenameModal(userKey, currentName) {
   userToRenameKey = userKey;
-  userToRename = allUsers.find(u => (u.email || u.uid) === userKey);
+  userToRename = allUsers.find(u => (u.userKey || u.email || u.uid) === userKey);
   
   if (renameInput) {
     renameInput.value = currentName || '';
@@ -988,11 +949,13 @@ async function executeRename() {
   }
   
   try {
-    // Mettre à jour le nom de l'utilisateur
-    userToRename.name = newName;
-    
-    // Sauvegarder la configuration utilisateur mise à jour (sans changer l'utilisateur courant)
-    await window.electronAPI.saveUserConfig(userToRename, false);
+    // Renommer l'utilisateur via l'API dédiée (ne modifie que le champ name)
+    const renameResult = await window.electronAPI.renameUser(userToRenameKey, newName);
+    if (!renameResult.success) {
+      renameError.textContent = renameResult.error || 'Erreur lors du renommage';
+      renameError.style.display = 'block';
+      return;
+    }
     console.log('[Ryvie][Login] Profil renommé avec succès');
     
     // Rafraîchir l'affichage des utilisateurs
@@ -1023,7 +986,7 @@ async function executeRemoveUser() {
     if (!result.success) {
       console.error('[Ryvie][Login] Erreur suppression utilisateur:', result.error);
       if (usersError) {
-        usersError.textContent = 'Erreur lors de la suppression: ' + result.error;
+        usersError.textContent = 'Erreur lors de la suppression de l\'appareil: ' + result.error;
         usersError.style.display = 'block';
       }
       return;
@@ -1041,7 +1004,7 @@ async function executeRemoveUser() {
   } catch (error) {
     console.error('[Ryvie][Login] Erreur suppression utilisateur:', error);
     if (usersError) {
-      usersError.textContent = 'Erreur lors de la suppression: ' + error.message;
+      usersError.textContent = 'Erreur lors de la suppression de l\'appareil: ' + error.message;
       usersError.style.display = 'block';
     }
   }
@@ -1136,7 +1099,19 @@ async function handleFirstTimeSetup() {
     const localData = domainsResult.data;
     console.log('[Ryvie][Login] Données récupérées avec succès');
     
+    // Configurer NetBird si une setupKey est disponible
+    if (localData.setupKey) {
+      console.log('[Ryvie][Login] Configuration de NetBird (first-time)...');
+      const netbirdResult = await window.electronAPI.setupNetbird(localData.setupKey, localData.tunnelHost);
+      if (netbirdResult.success) {
+        console.log('[Ryvie][Login] NetBird configuré avec succès');
+      } else {
+        console.warn('[Ryvie][Login] Erreur configuration NetBird:', netbirdResult.error);
+      }
+    }
+    
     const config = {
+      name: uid,
       mode: 'local',
       ryvieId: localData.ryvieId,
       domains: localData.domains,
