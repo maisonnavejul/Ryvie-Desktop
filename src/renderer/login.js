@@ -316,6 +316,8 @@ async function handleLogin() {
       const config = {
         name: profileName || uid,
         uid: uid,
+        mode: 'local',
+        ryvieId: ryvieId,
         url: LOCAL_APP_URL,
         jwtToken: authResult.token,
         domains: domains
@@ -345,16 +347,39 @@ async function handleLogin() {
       return;
     }
     
+    // Parse le format UUID-IP (ex: E455957B-10FE-4ED0-9F43-26D55E826E36-100.104.13.12)
+    const lastDashIndex = setupKey.lastIndexOf('-');
+    if (lastDashIndex === -1) {
+      loginError.textContent = 'Format de clé invalide (attendu: UUID-IP)';
+      loginError.style.display = 'block';
+      return;
+    }
+    
+    const key = setupKey.substring(0, lastDashIndex);
+    const tunnelIp = setupKey.substring(lastDashIndex + 1);
+    
+    if (!key || !tunnelIp) {
+      loginError.textContent = 'Clé de configuration incomplète';
+      loginError.style.display = 'block';
+      return;
+    }
+    
+    const ipRegex = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/;
+    if (!ipRegex.test(tunnelIp)) {
+      loginError.textContent = 'Format d\'IP invalide dans la clé (ex: UUID-100.64.0.1)';
+      loginError.style.display = 'block';
+      return;
+    }
+    
     loginBtn.disabled = true;
     loginBtn.classList.add('loading');
     loginBtn.innerHTML = '<span class="btn-spinner"></span><span>Connexion...</span>';
     loginError.style.display = 'none';
     
     try {
-      console.log('[Ryvie][Login] Tentative de connexion manuelle...');
+      console.log('[Ryvie][Login] Tentative de connexion manuelle avec IP:', tunnelIp);
       
-      // Appeler setup-netbird avec la clé
-      const setupResult = await window.electronAPI.setupNetbird(setupKey);
+      const setupResult = await window.electronAPI.setupNetbird(key, tunnelIp);
       
       if (!setupResult.success) {
         console.error('[Ryvie][Login] Erreur setup NetBird:', setupResult.error);
@@ -374,9 +399,9 @@ async function handleLogin() {
         name: profileName,
         email: '',
         role: 'User',
-        ryvieId: setupResult.ryvieId || '',
-        setupKey: setupKey,
-        tunnelHost: setupResult.tunnelHost || '',
+        ryvieId: 'manual-' + Date.now(),
+        setupKey: key,
+        tunnelHost: tunnelIp,
         jwtToken: '',
         domains: [],
         mode: 'manual'
@@ -389,11 +414,13 @@ async function handleLogin() {
       const config = {
         name: profileName,
         uid: profileName,
-        url: LOCAL_APP_URL,
+        mode: 'manual',
+        ryvieId: 'manual-' + Date.now(),
+        url: `http://${tunnelIp}:3000`,
         jwtToken: '',
-        domains: [],
-        setupKey: setupKey,
-        tunnelHost: setupResult.tunnelHost || ''
+        domains: {},
+        setupKey: key,
+        tunnelHost: tunnelIp
       };
       await window.electronAPI.saveConfig(config);
       console.log('[Ryvie][Login] Configuration sauvegardée');
