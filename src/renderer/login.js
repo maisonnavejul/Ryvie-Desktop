@@ -3,6 +3,8 @@ const LOCAL_APP_URL = 'http://ryvie.local';
 let uidInput, passwordInput, loginBtn, loginError;
 let loadingSection, firstTimeSection, loginSection, firstTimeForm, firstTimeError;
 let firstTimeUidInput, firstTimeEmailInput, firstTimeLanguageSelect, firstTimePasswordInput, firstTimeConfirmPasswordInput, firstTimeCreateBtn;
+let ryvieNameSection, ryvieNameInput, ryvieNameError, ryvieNameBtn;
+let pendingFirstTimeData = null;
 let usersSelectionSection, usersList, addUserBtn, usersError;
 let confirmDeleteModal, confirmDeleteMessage, confirmDeleteBtn, cancelDeleteBtn;
 let profileNameInput, methodLocalTab, methodManualTab, localFields, manualFields, manualSetupKeyInput;
@@ -41,13 +43,18 @@ document.addEventListener('DOMContentLoaded', function() {
   loginSection = document.getElementById('login-section');
   firstTimeForm = document.getElementById('first-time-form');
   firstTimeError = document.getElementById('first-time-error');
-  firstTimeRyvieNameInput = document.getElementById('first-time-ryvie-name-input');
   firstTimeUidInput = document.getElementById('first-time-uid-input');
   firstTimeEmailInput = document.getElementById('first-time-email-input');
   firstTimeLanguageSelect = document.getElementById('first-time-language-select');
   firstTimePasswordInput = document.getElementById('first-time-password-input');
   firstTimeConfirmPasswordInput = document.getElementById('first-time-confirm-password-input');
   firstTimeCreateBtn = document.getElementById('first-time-create-btn');
+  
+  // Éléments nommage Ryvie
+  ryvieNameSection = document.getElementById('ryvie-name-section');
+  ryvieNameInput = document.getElementById('ryvie-name-input');
+  ryvieNameError = document.getElementById('ryvie-name-error');
+  ryvieNameBtn = document.getElementById('ryvie-name-btn');
   
   // Éléments sélection utilisateurs
   usersSelectionSection = document.getElementById('users-selection-section');
@@ -184,6 +191,10 @@ function attachEventListeners() {
   
   if (firstTimeCreateBtn) {
     firstTimeCreateBtn.addEventListener('click', handleFirstTimeSetup);
+  }
+  
+  if (ryvieNameBtn) {
+    ryvieNameBtn.addEventListener('click', handleRyvieName);
   }
   
   // Event listeners pour la section utilisateurs
@@ -441,6 +452,113 @@ async function handleLogin() {
   }
 }
 
+async function handleRyvieName() {
+  const ryvieName = ryvieNameInput.value.trim();
+  
+  if (!ryvieName) {
+    ryvieNameError.textContent = 'Veuillez entrer un nom';
+    ryvieNameError.style.display = 'block';
+    return;
+  }
+  
+  if (!pendingFirstTimeData) {
+    ryvieNameError.textContent = 'Erreur: données manquantes';
+    ryvieNameError.style.display = 'block';
+    return;
+  }
+  
+  const { uid, email, password } = pendingFirstTimeData;
+  
+  ryvieNameBtn.disabled = true;
+  ryvieNameBtn.classList.add('loading');
+  ryvieNameBtn.innerHTML = '<span class="btn-spinner"></span><span>Connexion...</span>';
+  ryvieNameError.style.display = 'none';
+  
+  try {
+    console.log('[Ryvie][Login] Authentification après création...');
+    
+    const authResult = await window.electronAPI.authenticate({ uid, password });
+    
+    if (!authResult.success) {
+      console.error('[Ryvie][Login] Authentification échouée:', authResult.error);
+      ryvieNameError.textContent = 'Erreur d\'authentification';
+      ryvieNameError.style.display = 'block';
+      ryvieNameBtn.disabled = false;
+      ryvieNameBtn.classList.remove('loading');
+      ryvieNameBtn.innerHTML = '<span>Continuer</span>';
+      return;
+    }
+    
+    console.log('[Ryvie][Login] Authentification réussie, récupération des domaines...');
+    
+    const domainsResult = await window.electronAPI.getDomains(authResult.token);
+    
+    if (!domainsResult.success) {
+      console.error('[Ryvie][Login] Erreur récupération domaines');
+      ryvieNameError.textContent = 'Erreur lors de la récupération des informations';
+      ryvieNameError.style.display = 'block';
+      ryvieNameBtn.disabled = false;
+      ryvieNameBtn.classList.remove('loading');
+      ryvieNameBtn.innerHTML = '<span>Continuer</span>';
+      return;
+    }
+    
+    const localData = domainsResult.data;
+    console.log('[Ryvie][Login] Données récupérées avec succès');
+    
+    if (localData.setupKey) {
+      console.log('[Ryvie][Login] Configuration de NetBird...');
+      const netbirdResult = await window.electronAPI.setupNetbird(localData.setupKey, localData.tunnelHost);
+      if (netbirdResult.success) {
+        console.log('[Ryvie][Login] NetBird configuré avec succès');
+      } else {
+        console.warn('[Ryvie][Login] Erreur configuration NetBird:', netbirdResult.error);
+      }
+    }
+    
+    const config = {
+      name: ryvieName,
+      mode: 'local',
+      ryvieId: localData.ryvieId,
+      domains: localData.domains,
+      tunnelHost: localData.tunnelHost,
+      setupKey: localData.setupKey,
+      url: 'http://ryvie.local',
+      jwtToken: authResult.token
+    };
+    
+    const userConfig = {
+      uid: uid,
+      name: ryvieName,
+      email: email,
+      role: localData.role || 'User',
+      ryvieId: localData.ryvieId,
+      setupKey: localData.setupKey,
+      tunnelHost: localData.tunnelHost,
+      jwtToken: authResult.token,
+      domains: localData.domains,
+      mode: 'local'
+    };
+    
+    await window.electronAPI.saveUserConfig(userConfig);
+    console.log('[Ryvie][Login] Profil utilisateur sauvegardé');
+    
+    await window.electronAPI.saveConfig(config);
+    console.log('[Ryvie][Login] Configuration sauvegardée');
+    
+    console.log('[Ryvie][Login] Redirection vers la page principale...');
+    window.electronAPI.navigateTo('index.html');
+    
+  } catch (error) {
+    console.error('[Ryvie][Login] Erreur inattendue:', error);
+    ryvieNameError.textContent = 'Erreur inattendue: ' + error.message;
+    ryvieNameError.style.display = 'block';
+    ryvieNameBtn.disabled = false;
+    ryvieNameBtn.classList.remove('loading');
+    ryvieNameBtn.innerHTML = '<span>Continuer</span>';
+  }
+}
+
 async function checkFirstTimeSetup() {
   try {
     console.log('[Ryvie][Login] Vérification first-time setup...');
@@ -505,10 +623,6 @@ function showFirstTimeSetup() {
   hideLoading();
   setCompactHeader(true);
   activateSection(firstTimeSection);
-  
-  if (firstTimeRyvieNameInput) {
-    firstTimeRyvieNameInput.value = getUniqueProfileName();
-  }
 }
 
 function getUniqueProfileName() {
@@ -1042,14 +1156,13 @@ async function executeRemoveUser() {
 }
 
 async function handleFirstTimeSetup() {
-  const ryvieName = firstTimeRyvieNameInput.value.trim();
   const uid = firstTimeUidInput.value.trim();
   const email = firstTimeEmailInput.value.trim();
   const language = firstTimeLanguageSelect.value;
   const password = firstTimePasswordInput.value.trim();
   const confirmPassword = firstTimeConfirmPasswordInput.value.trim();
   
-  if (!ryvieName || !uid || !email || !password || !confirmPassword) {
+  if (!uid || !email || !password || !confirmPassword) {
     firstTimeError.textContent = 'Veuillez remplir tous les champs';
     firstTimeError.style.display = 'block';
     return;
@@ -1100,80 +1213,24 @@ async function handleFirstTimeSetup() {
       return;
     }
     
-    console.log('[Ryvie][Login] Utilisateur créé avec succès, authentification...');
+    console.log('[Ryvie][Login] Utilisateur créé avec succès');
     
-    const authResult = await window.electronAPI.authenticate({ uid, password });
-    
-    if (!authResult.success) {
-      console.error('[Ryvie][Login] Authentification échouée après création:', authResult.error);
-      firstTimeError.textContent = 'Utilisateur créé mais erreur d\'authentification';
-      firstTimeError.style.display = 'block';
-      firstTimeCreateBtn.disabled = false;
-      firstTimeCreateBtn.classList.remove('loading');
-      firstTimeCreateBtn.innerHTML = '<span>Créer le compte</span>';
-      return;
-    }
-    
-    console.log('[Ryvie][Login] Authentification réussie, récupération des domaines...');
-    
-    const domainsResult = await window.electronAPI.getDomains(authResult.token);
-    
-    if (!domainsResult.success) {
-      console.error('[Ryvie][Login] Erreur récupération domaines');
-      firstTimeError.textContent = 'Erreur lors de la récupération des informations';
-      firstTimeError.style.display = 'block';
-      firstTimeCreateBtn.disabled = false;
-      firstTimeCreateBtn.classList.remove('loading');
-      firstTimeCreateBtn.innerHTML = '<span>Créer le compte</span>';
-      return;
-    }
-    
-    const localData = domainsResult.data;
-    console.log('[Ryvie][Login] Données récupérées avec succès');
-    
-    // Configurer NetBird si une setupKey est disponible
-    if (localData.setupKey) {
-      console.log('[Ryvie][Login] Configuration de NetBird (first-time)...');
-      const netbirdResult = await window.electronAPI.setupNetbird(localData.setupKey, localData.tunnelHost);
-      if (netbirdResult.success) {
-        console.log('[Ryvie][Login] NetBird configuré avec succès');
-      } else {
-        console.warn('[Ryvie][Login] Erreur configuration NetBird:', netbirdResult.error);
-      }
-    }
-    
-    const config = {
-      name: ryvieName,
-      mode: 'local',
-      ryvieId: localData.ryvieId,
-      domains: localData.domains,
-      tunnelHost: localData.tunnelHost,
-      setupKey: localData.setupKey,
-      url: 'http://ryvie.local',
-      jwtToken: authResult.token
-    };
-    
-    const userConfig = {
+    // Stocker les données pour l'étape de nommage
+    pendingFirstTimeData = {
       uid: uid,
-      name: ryvieName,
       email: email,
-      role: localData.role || 'User',
-      ryvieId: localData.ryvieId,
-      setupKey: localData.setupKey,
-      tunnelHost: localData.tunnelHost,
-      jwtToken: authResult.token,
-      domains: localData.domains,
-      mode: 'local'
+      password: password,
+      language: language
     };
     
-    await window.electronAPI.saveUserConfig(userConfig);
-    console.log('[Ryvie][Login] Utilisateur sauvegardé avec le nouveau système');
+    // Afficher la page de nommage du Ryvie
+    hideLoading();
+    setCompactHeader(true);
+    activateSection(ryvieNameSection);
     
-    await window.electronAPI.saveConfig(config);
-    console.log('[Ryvie][Login] Configuration sauvegardée');
-    
-    console.log('[Ryvie][Login] Redirection vers la page principale...');
-    window.electronAPI.navigateTo('index.html');
+    if (ryvieNameInput) {
+      ryvieNameInput.value = getUniqueProfileName();
+    }
     
   } catch (error) {
     console.error('[Ryvie][Login] Erreur inattendue:', error);
