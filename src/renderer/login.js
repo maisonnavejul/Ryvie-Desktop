@@ -41,6 +41,7 @@ document.addEventListener('DOMContentLoaded', function() {
   loginSection = document.getElementById('login-section');
   firstTimeForm = document.getElementById('first-time-form');
   firstTimeError = document.getElementById('first-time-error');
+  firstTimeRyvieNameInput = document.getElementById('first-time-ryvie-name-input');
   firstTimeUidInput = document.getElementById('first-time-uid-input');
   firstTimeEmailInput = document.getElementById('first-time-email-input');
   firstTimeLanguageSelect = document.getElementById('first-time-language-select');
@@ -443,6 +444,7 @@ async function handleLogin() {
 async function checkFirstTimeSetup() {
   try {
     console.log('[Ryvie][Login] Vérification first-time setup...');
+    
     const result = await window.electronAPI.checkFirstTime();
     
     if (result.success && result.isFirstTime) {
@@ -503,6 +505,10 @@ function showFirstTimeSetup() {
   hideLoading();
   setCompactHeader(true);
   activateSection(firstTimeSection);
+  
+  if (firstTimeRyvieNameInput) {
+    firstTimeRyvieNameInput.value = getUniqueProfileName();
+  }
 }
 
 function getUniqueProfileName() {
@@ -529,7 +535,6 @@ function showLoginForm() {
   }
   activateSection(loginSection);
   
-  // Réinitialiser le champ Nom du profil avec un nom unique
   if (profileNameInput) {
     profileNameInput.value = getUniqueProfileName();
   }
@@ -550,7 +555,6 @@ function showSection(sectionId) {
   
   if (sectionId === 'login-section') {
     activateSection(loginSection);
-    // Réinitialiser le champ Nom du profil avec un nom unique
     if (profileNameInput) {
       profileNameInput.value = getUniqueProfileName();
     }
@@ -1038,13 +1042,14 @@ async function executeRemoveUser() {
 }
 
 async function handleFirstTimeSetup() {
+  const ryvieName = firstTimeRyvieNameInput.value.trim();
   const uid = firstTimeUidInput.value.trim();
   const email = firstTimeEmailInput.value.trim();
   const language = firstTimeLanguageSelect.value;
   const password = firstTimePasswordInput.value.trim();
   const confirmPassword = firstTimeConfirmPasswordInput.value.trim();
   
-  if (!uid || !email || !password || !confirmPassword) {
+  if (!ryvieName || !uid || !email || !password || !confirmPassword) {
     firstTimeError.textContent = 'Veuillez remplir tous les champs';
     firstTimeError.style.display = 'block';
     return;
@@ -1138,7 +1143,7 @@ async function handleFirstTimeSetup() {
     }
     
     const config = {
-      name: uid,
+      name: ryvieName,
       mode: 'local',
       ryvieId: localData.ryvieId,
       domains: localData.domains,
@@ -1148,10 +1153,9 @@ async function handleFirstTimeSetup() {
       jwtToken: authResult.token
     };
     
-    // Sauvegarder l'utilisateur avec le nouveau système multi-utilisateurs
     const userConfig = {
       uid: uid,
-      name: uid,
+      name: ryvieName,
       email: email,
       role: localData.role || 'User',
       ryvieId: localData.ryvieId,
