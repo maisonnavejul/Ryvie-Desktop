@@ -49,6 +49,16 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: npm run build:win
       
+      - name: Debug Notarytool Credentials
+        if: matrix.os == 'macos-latest'
+        run: |
+          echo "Testing notarytool connection..."
+          xcrun notarytool history --apple-id "${{ secrets.APPLE_ID }}" --team-id "${{ secrets.APPLE_TEAM_ID }}" --password "${{ secrets.APPLE_APP_PASSWORD }}" || true
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
       - name: Build macOS
         if: matrix.os == 'macos-latest'
         run: npm run build:mac
