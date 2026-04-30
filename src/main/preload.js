@@ -28,5 +28,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // API first-time setup
   checkFirstTime: () => ipcRenderer.invoke('check-first-time'),
-  createFirstUser: (userData) => ipcRenderer.invoke('create-first-user', userData)
+  createFirstUser: (userData) => ipcRenderer.invoke('create-first-user', userData),
+  
+  // API multi-utilisateurs
+  getAllUsers: () => ipcRenderer.invoke('get-all-users'),
+  saveUserConfig: (userConfig, setCurrent) => ipcRenderer.invoke('save-user-config', userConfig, setCurrent),
+  switchUser: (userKey) => ipcRenderer.invoke('switch-user', userKey),
+  getCurrentUser: () => ipcRenderer.invoke('get-current-user'),
+  removeUser: (userKey) => ipcRenderer.invoke('remove-user', userKey),
+  renameUser: (userKey, newName) => ipcRenderer.invoke('rename-user', userKey, newName)
 });

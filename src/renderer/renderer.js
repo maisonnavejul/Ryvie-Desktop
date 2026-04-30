@@ -38,6 +38,7 @@ const acceptBtn = document.getElementById('accept-btn');
 const refuseBtn = document.getElementById('refuse-btn');
 
 const retryConnectionBtn = document.getElementById('retry-connection-btn');
+const appTitleEl = document.getElementById('app-title');
 
 const updateModal = document.getElementById('update-modal');
 const updateVersionEl = document.getElementById('update-version');
@@ -61,9 +62,13 @@ function setButtonLoading(isLoading) {
 }
 function setVisibility(el, visible) {
   if (!el) return;
-  el.classList.remove('visible');
-  el.classList.remove('hidden');
-  el.classList.add(visible ? 'visible' : 'hidden');
+  el.classList.remove('visible', 'hidden', 'active');
+  if (visible) {
+    el.classList.add('active');
+    requestAnimationFrame(() => el.classList.add('visible'));
+  } else {
+    el.classList.add('hidden');
+  }
 }
 
 // Fonctions d'affichage
@@ -188,6 +193,7 @@ async function checkConnection() {
         console.log('[Ryvie][Renderer] localData.setupKey:', localData.setupKey ? 'présent' : 'absent');
         
         currentConfig = {
+          name: savedConfig.name,
           mode: 'local',
           ryvieId: localData.ryvieId,
           domains: localData.domains,
@@ -298,9 +304,61 @@ async function switchToRemoteMode(config) {
       }
     } catch (error) {
       console.error('[Ryvie][Renderer] ❌ URL manuelle inaccessible:', error.message);
-      showError('La connexion manuelle à votre Ryvie est impossible. Vérifiez l\'IP du tunnel et que NetBird est connecté.');
+      showError('Impossible de joindre ce Ryvie. Vérifiez qu\'il est bien allumé et connecté à Internet.');
       return;
     }
+  } else if (config && config.mode === 'local' && config.ryvieId) {
+    // Mode local mais machine-id ne correspond pas (on est en switchToRemoteMode)
+    // Tenter d'accéder via les domaines ou tunnelHost si disponibles
+    if (config.domains && config.domains.app) {
+      console.log('[Ryvie][Renderer] Mode LOCAL distant -> tentative via domaine app:', config.domains.app);
+      const publicUrl = `https://${config.domains.app}`;
+      try {
+        const testResponse = await fetch(publicUrl, { method: 'GET', signal: AbortSignal.timeout(8000) });
+        if (!testResponse.ok) throw new Error(`HTTP ${testResponse.status}`);
+        console.log('[Ryvie][Renderer] ✅ Connexion remote via domaine réussie');
+        currentConfig = {
+          mode: 'remote',
+          ryvieId: config.ryvieId,
+          url: publicUrl,
+          jwtToken: config.jwtToken,
+          domains: config.domains || {}
+        };
+        showConnected();
+        updateUI(currentConfig);
+        maybeAutoOpen();
+        if (!isInitialLoad) setButtonLoading(false);
+      } catch (error) {
+        console.error('[Ryvie][Renderer] ❌ Domaine app inaccessible:', error.message);
+        showError('Impossible de joindre ce Ryvie. Vérifiez qu\'il est bien allumé et connecté à Internet.');
+      }
+    } else if (config.tunnelHost) {
+      console.log('[Ryvie][Renderer] Mode LOCAL distant -> tentative via tunnelHost:', config.tunnelHost);
+      const tunnelUrl = `http://${config.tunnelHost}:3000`;
+      try {
+        const testResponse = await fetch(tunnelUrl, { method: 'GET', signal: AbortSignal.timeout(8000) });
+        if (!testResponse.ok) throw new Error(`HTTP ${testResponse.status}`);
+        console.log('[Ryvie][Renderer] ✅ Connexion remote via tunnel réussie');
+        currentConfig = {
+          mode: 'remote',
+          ryvieId: config.ryvieId,
+          url: tunnelUrl,
+          jwtToken: config.jwtToken,
+          domains: config.domains || {}
+        };
+        showConnected();
+        updateUI(currentConfig);
+        maybeAutoOpen();
+        if (!isInitialLoad) setButtonLoading(false);
+      } catch (error) {
+        console.error('[Ryvie][Renderer] ❌ Tunnel inaccessible:', error.message);
+        showError('Impossible de joindre ce Ryvie. Vérifiez qu\'il est bien allumé et connecté à Internet.');
+      }
+    } else {
+      console.warn('[Ryvie][Renderer] ⚠️ Ryvie local mais pas sur le bon réseau, aucun accès distant configuré');
+      showError('Le Ryvie détecté en local n\'est pas celui de ce profil. Vérifiez que le bon Ryvie est allumé ou connectez-vous au même réseau.');
+    }
+    return;
   } else if (config && config.domains) {
     // Déterminer l'URL publique selon la présence de domains.app
     let publicUrl;
@@ -435,10 +493,14 @@ function stopVpnStatusCheck() {
 
 function updateUI(config) {
   console.log('[Ryvie][Renderer] 🖥️  Mise à jour UI:', config.mode.toUpperCase(), '- ryvieId:', config.ryvieId);
+  // Afficher le nom du Ryvie dans le titre
+  if (appTitleEl && config.name) {
+    appTitleEl.textContent = config.name;
+  }
   if (config.mode === 'local') {
-    connectionType.innerHTML = '<strong>Mode:</strong> Connexion Locale <span aria-hidden="true">🏠</span>';
+    connectionType.innerHTML = '<strong>Mode:</strong> Connexion Automatique <span aria-hidden="true">🏠</span>';
   } else if (config.mode === 'manual') {
-    connectionType.innerHTML = '<strong>Mode:</strong> Configuration Manuelle <span aria-hidden="true">🔧</span>';
+    connectionType.innerHTML = '<strong>Mode:</strong> Connexion Manuelle <span aria-hidden="true">🔧</span>';
   } else if (config.mode === 'remote') {
     connectionType.innerHTML = '<strong>Mode:</strong> Connexion Distante <span aria-hidden="true">🌐</span>';
   } else {
