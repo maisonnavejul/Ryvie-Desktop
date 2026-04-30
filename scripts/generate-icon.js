@@ -2,13 +2,13 @@ const fs = require('fs');
 const path = require('path');
 
 // Dynamic imports for ES modules
-const sharp = import('sharp');
-const pngToIco = import('png-to-ico');
+const sharpPromise = import('sharp');
+const pngToIcoPromise = import('png-to-ico');
 
 (async () => {
   // Await the dynamic imports
-  const sharpModule = await sharp;
-  const pngToIcoModule = await pngToIco;
+  const sharpModule = await sharpPromise;
+  const pngToIcoModule = await pngToIcoPromise;
   const { default: sharp } = sharpModule;
   const { default: pngToIco } = pngToIcoModule;
   const projectRoot = path.resolve(__dirname, '..');
