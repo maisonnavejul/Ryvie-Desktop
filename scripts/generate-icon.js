@@ -1,9 +1,16 @@
 const fs = require('fs');
 const path = require('path');
-const sharp = require('sharp');
-const pngToIco = require('png-to-ico');
+
+// Dynamic imports for ES modules
+const sharp = import('sharp');
+const pngToIco = import('png-to-ico');
 
 (async () => {
+  // Await the dynamic imports
+  const sharpModule = await sharp;
+  const pngToIcoModule = await pngToIco;
+  const { default: sharp } = sharpModule;
+  const { default: pngToIco } = pngToIcoModule;
   const projectRoot = path.resolve(__dirname, '..');
   const srcSvg = path.join(projectRoot, 'ryvielogo0.svg');
   const outDir = path.join(projectRoot, 'build', 'icons', 'win');
