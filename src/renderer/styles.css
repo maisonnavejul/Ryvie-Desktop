@@ -581,10 +581,10 @@ h1 {
   }
 }
 
-@media (max-height: 650px) {
+@media (max-height: 750px) {
   .login-section-content {
     transform-origin: top center;
-    transform: scale(clamp(0.45, calc(100vh / 750px), 1));
+    transform: scale(clamp(0.45, calc(100vh / 850px), 1));
   }
 }
 
@@ -655,7 +655,7 @@ h1 {
   display: flex;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
-  margin-bottom: clamp(20px, 3.5vh, 34px);
+  margin-bottom: clamp(16px, 2.8vh, 28px);
   overflow: hidden;
 }
 
@@ -684,7 +684,7 @@ h1 {
 
 .login-submit-btn {
   width: 100%;
-  padding: clamp(16px, 2.8vh, 22px);
+  padding: clamp(14px, 2.5vh, 20px);
   border: none;
   border-radius: 12px;
   font-size: clamp(16px, 3vh, 20px);
@@ -695,5 +695,5 @@ h1 {
   cursor: pointer;
   transition: all 0.2s;
   box-shadow: 0 4px 14px rgba(27, 172, 237, 0.3);
-  margin-top: clamp(8px, 2vh, 18px);
+  margin-top: clamp(6px, 1.5vh, 14px);
 }

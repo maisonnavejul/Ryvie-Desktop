@@ -3,6 +3,8 @@ const LOCAL_APP_URL = 'http://ryvie.local';
 let uidInput, passwordInput, loginBtn, loginError;
 let loadingSection, firstTimeSection, loginSection, firstTimeForm, firstTimeError;
 let firstTimeUidInput, firstTimeEmailInput, firstTimeLanguageSelect, firstTimePasswordInput, firstTimeConfirmPasswordInput, firstTimeCreateBtn;
+let ryvieNameSection, ryvieNameInput, ryvieNameError, ryvieNameBtn;
+let pendingFirstTimeData = null;
 let usersSelectionSection, usersList, addUserBtn, usersError;
 let confirmDeleteModal, confirmDeleteMessage, confirmDeleteBtn, cancelDeleteBtn;
 let profileNameInput, methodLocalTab, methodManualTab, localFields, manualFields, manualSetupKeyInput;
@@ -47,6 +49,12 @@ document.addEventListener('DOMContentLoaded', function() {
   firstTimePasswordInput = document.getElementById('first-time-password-input');
   firstTimeConfirmPasswordInput = document.getElementById('first-time-confirm-password-input');
   firstTimeCreateBtn = document.getElementById('first-time-create-btn');
+  
+  // Éléments nommage Ryvie
+  ryvieNameSection = document.getElementById('ryvie-name-section');
+  ryvieNameInput = document.getElementById('ryvie-name-input');
+  ryvieNameError = document.getElementById('ryvie-name-error');
+  ryvieNameBtn = document.getElementById('ryvie-name-btn');
   
   // Éléments sélection utilisateurs
   usersSelectionSection = document.getElementById('users-selection-section');
@@ -185,6 +193,10 @@ function attachEventListeners() {
     firstTimeCreateBtn.addEventListener('click', handleFirstTimeSetup);
   }
   
+  if (ryvieNameBtn) {
+    ryvieNameBtn.addEventListener('click', handleRyvieName);
+  }
+  
   // Event listeners pour la section utilisateurs
   if (addUserBtn) {
     addUserBtn.addEventListener('click', () => {
@@ -316,6 +328,8 @@ async function handleLogin() {
       const config = {
         name: profileName || uid,
         uid: uid,
+        mode: 'local',
+        ryvieId: ryvieId,
         url: LOCAL_APP_URL,
         jwtToken: authResult.token,
         domains: domains
@@ -345,16 +359,39 @@ async function handleLogin() {
       return;
     }
     
+    // Parse le format UUID-IP (ex: E455957B-10FE-4ED0-9F43-26D55E826E36-100.104.13.12)
+    const lastDashIndex = setupKey.lastIndexOf('-');
+    if (lastDashIndex === -1) {
+      loginError.textContent = 'Format de clé invalide (attendu: UUID-IP)';
+      loginError.style.display = 'block';
+      return;
+    }
+    
+    const key = setupKey.substring(0, lastDashIndex);
+    const tunnelIp = setupKey.substring(lastDashIndex + 1);
+    
+    if (!key || !tunnelIp) {
+      loginError.textContent = 'Clé de configuration incomplète';
+      loginError.style.display = 'block';
+      return;
+    }
+    
+    const ipRegex = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/;
+    if (!ipRegex.test(tunnelIp)) {
+      loginError.textContent = 'Format d\'IP invalide dans la clé (ex: UUID-100.64.0.1)';
+      loginError.style.display = 'block';
+      return;
+    }
+    
     loginBtn.disabled = true;
     loginBtn.classList.add('loading');
     loginBtn.innerHTML = '<span class="btn-spinner"></span><span>Connexion...</span>';
     loginError.style.display = 'none';
     
     try {
-      console.log('[Ryvie][Login] Tentative de connexion manuelle...');
+      console.log('[Ryvie][Login] Tentative de connexion manuelle avec IP:', tunnelIp);
       
-      // Appeler setup-netbird avec la clé
-      const setupResult = await window.electronAPI.setupNetbird(setupKey);
+      const setupResult = await window.electronAPI.setupNetbird(key, tunnelIp);
       
       if (!setupResult.success) {
         console.error('[Ryvie][Login] Erreur setup NetBird:', setupResult.error);
@@ -374,9 +411,9 @@ async function handleLogin() {
         name: profileName,
         email: '',
         role: 'User',
-        ryvieId: setupResult.ryvieId || '',
-        setupKey: setupKey,
-        tunnelHost: setupResult.tunnelHost || '',
+        ryvieId: 'manual-' + Date.now(),
+        setupKey: key,
+        tunnelHost: tunnelIp,
         jwtToken: '',
         domains: [],
         mode: 'manual'
@@ -389,11 +426,13 @@ async function handleLogin() {
       const config = {
         name: profileName,
         uid: profileName,
-        url: LOCAL_APP_URL,
+        mode: 'manual',
+        ryvieId: 'manual-' + Date.now(),
+        url: `http://${tunnelIp}:3000`,
         jwtToken: '',
-        domains: [],
-        setupKey: setupKey,
-        tunnelHost: setupResult.tunnelHost || ''
+        domains: {},
+        setupKey: key,
+        tunnelHost: tunnelIp
       };
       await window.electronAPI.saveConfig(config);
       console.log('[Ryvie][Login] Configuration sauvegardée');
@@ -413,9 +452,117 @@ async function handleLogin() {
   }
 }
 
+async function handleRyvieName() {
+  const ryvieName = ryvieNameInput.value.trim();
+  
+  if (!ryvieName) {
+    ryvieNameError.textContent = 'Veuillez entrer un nom';
+    ryvieNameError.style.display = 'block';
+    return;
+  }
+  
+  if (!pendingFirstTimeData) {
+    ryvieNameError.textContent = 'Erreur: données manquantes';
+    ryvieNameError.style.display = 'block';
+    return;
+  }
+  
+  const { uid, email, password } = pendingFirstTimeData;
+  
+  ryvieNameBtn.disabled = true;
+  ryvieNameBtn.classList.add('loading');
+  ryvieNameBtn.innerHTML = '<span class="btn-spinner"></span><span>Connexion...</span>';
+  ryvieNameError.style.display = 'none';
+  
+  try {
+    console.log('[Ryvie][Login] Authentification après création...');
+    
+    const authResult = await window.electronAPI.authenticate({ uid, password });
+    
+    if (!authResult.success) {
+      console.error('[Ryvie][Login] Authentification échouée:', authResult.error);
+      ryvieNameError.textContent = 'Erreur d\'authentification';
+      ryvieNameError.style.display = 'block';
+      ryvieNameBtn.disabled = false;
+      ryvieNameBtn.classList.remove('loading');
+      ryvieNameBtn.innerHTML = '<span>Continuer</span>';
+      return;
+    }
+    
+    console.log('[Ryvie][Login] Authentification réussie, récupération des domaines...');
+    
+    const domainsResult = await window.electronAPI.getDomains(authResult.token);
+    
+    if (!domainsResult.success) {
+      console.error('[Ryvie][Login] Erreur récupération domaines');
+      ryvieNameError.textContent = 'Erreur lors de la récupération des informations';
+      ryvieNameError.style.display = 'block';
+      ryvieNameBtn.disabled = false;
+      ryvieNameBtn.classList.remove('loading');
+      ryvieNameBtn.innerHTML = '<span>Continuer</span>';
+      return;
+    }
+    
+    const localData = domainsResult.data;
+    console.log('[Ryvie][Login] Données récupérées avec succès');
+    
+    if (localData.setupKey) {
+      console.log('[Ryvie][Login] Configuration de NetBird...');
+      const netbirdResult = await window.electronAPI.setupNetbird(localData.setupKey, localData.tunnelHost);
+      if (netbirdResult.success) {
+        console.log('[Ryvie][Login] NetBird configuré avec succès');
+      } else {
+        console.warn('[Ryvie][Login] Erreur configuration NetBird:', netbirdResult.error);
+      }
+    }
+    
+    const config = {
+      name: ryvieName,
+      mode: 'local',
+      ryvieId: localData.ryvieId,
+      domains: localData.domains,
+      tunnelHost: localData.tunnelHost,
+      setupKey: localData.setupKey,
+      url: 'http://ryvie.local',
+      jwtToken: authResult.token
+    };
+    
+    const userConfig = {
+      uid: uid,
+      name: ryvieName,
+      email: email,
+      role: localData.role || 'User',
+      ryvieId: localData.ryvieId,
+      setupKey: localData.setupKey,
+      tunnelHost: localData.tunnelHost,
+      jwtToken: authResult.token,
+      domains: localData.domains,
+      mode: 'local'
+    };
+    
+    await window.electronAPI.saveUserConfig(userConfig);
+    console.log('[Ryvie][Login] Profil utilisateur sauvegardé');
+    
+    await window.electronAPI.saveConfig(config);
+    console.log('[Ryvie][Login] Configuration sauvegardée');
+    
+    console.log('[Ryvie][Login] Redirection vers la page principale...');
+    window.electronAPI.navigateTo('index.html');
+    
+  } catch (error) {
+    console.error('[Ryvie][Login] Erreur inattendue:', error);
+    ryvieNameError.textContent = 'Erreur inattendue: ' + error.message;
+    ryvieNameError.style.display = 'block';
+    ryvieNameBtn.disabled = false;
+    ryvieNameBtn.classList.remove('loading');
+    ryvieNameBtn.innerHTML = '<span>Continuer</span>';
+  }
+}
+
 async function checkFirstTimeSetup() {
   try {
     console.log('[Ryvie][Login] Vérification first-time setup...');
+    
     const result = await window.electronAPI.checkFirstTime();
     
     if (result.success && result.isFirstTime) {
@@ -502,7 +649,6 @@ function showLoginForm() {
   }
   activateSection(loginSection);
   
-  // Réinitialiser le champ Nom du profil avec un nom unique
   if (profileNameInput) {
     profileNameInput.value = getUniqueProfileName();
   }
@@ -523,7 +669,6 @@ function showSection(sectionId) {
   
   if (sectionId === 'login-section') {
     activateSection(loginSection);
-    // Réinitialiser le champ Nom du profil avec un nom unique
     if (profileNameInput) {
       profileNameInput.value = getUniqueProfileName();
     }
@@ -1068,81 +1213,24 @@ async function handleFirstTimeSetup() {
       return;
     }
     
-    console.log('[Ryvie][Login] Utilisateur créé avec succès, authentification...');
+    console.log('[Ryvie][Login] Utilisateur créé avec succès');
     
-    const authResult = await window.electronAPI.authenticate({ uid, password });
-    
-    if (!authResult.success) {
-      console.error('[Ryvie][Login] Authentification échouée après création:', authResult.error);
-      firstTimeError.textContent = 'Utilisateur créé mais erreur d\'authentification';
-      firstTimeError.style.display = 'block';
-      firstTimeCreateBtn.disabled = false;
-      firstTimeCreateBtn.classList.remove('loading');
-      firstTimeCreateBtn.innerHTML = '<span>Créer le compte</span>';
-      return;
-    }
-    
-    console.log('[Ryvie][Login] Authentification réussie, récupération des domaines...');
-    
-    const domainsResult = await window.electronAPI.getDomains(authResult.token);
-    
-    if (!domainsResult.success) {
-      console.error('[Ryvie][Login] Erreur récupération domaines');
-      firstTimeError.textContent = 'Erreur lors de la récupération des informations';
-      firstTimeError.style.display = 'block';
-      firstTimeCreateBtn.disabled = false;
-      firstTimeCreateBtn.classList.remove('loading');
-      firstTimeCreateBtn.innerHTML = '<span>Créer le compte</span>';
-      return;
-    }
-    
-    const localData = domainsResult.data;
-    console.log('[Ryvie][Login] Données récupérées avec succès');
-    
-    // Configurer NetBird si une setupKey est disponible
-    if (localData.setupKey) {
-      console.log('[Ryvie][Login] Configuration de NetBird (first-time)...');
-      const netbirdResult = await window.electronAPI.setupNetbird(localData.setupKey, localData.tunnelHost);
-      if (netbirdResult.success) {
-        console.log('[Ryvie][Login] NetBird configuré avec succès');
-      } else {
-        console.warn('[Ryvie][Login] Erreur configuration NetBird:', netbirdResult.error);
-      }
-    }
-    
-    const config = {
-      name: uid,
-      mode: 'local',
-      ryvieId: localData.ryvieId,
-      domains: localData.domains,
-      tunnelHost: localData.tunnelHost,
-      setupKey: localData.setupKey,
-      url: 'http://ryvie.local',
-      jwtToken: authResult.token
-    };
-    
-    // Sauvegarder l'utilisateur avec le nouveau système multi-utilisateurs
-    const userConfig = {
+    // Stocker les données pour l'étape de nommage
+    pendingFirstTimeData = {
       uid: uid,
-      name: uid,
       email: email,
-      role: localData.role || 'User',
-      ryvieId: localData.ryvieId,
-      setupKey: localData.setupKey,
-      tunnelHost: localData.tunnelHost,
-      jwtToken: authResult.token,
-      domains: localData.domains,
-      mode: 'local'
+      password: password,
+      language: language
     };
     
-    await window.electronAPI.saveUserConfig(userConfig);
-    console.log('[Ryvie][Login] Utilisateur sauvegardé avec le nouveau système');
+    // Afficher la page de nommage du Ryvie
+    hideLoading();
+    setCompactHeader(true);
+    activateSection(ryvieNameSection);
     
-    await window.electronAPI.saveConfig(config);
-    console.log('[Ryvie][Login] Configuration sauvegardée');
-    
-    console.log('[Ryvie][Login] Redirection vers la page principale...');
-    window.electronAPI.navigateTo('index.html');
+    if (ryvieNameInput) {
+      ryvieNameInput.value = getUniqueProfileName();
+    }
     
   } catch (error) {
     console.error('[Ryvie][Login] Erreur inattendue:', error);

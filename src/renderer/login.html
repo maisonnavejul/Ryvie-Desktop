@@ -38,7 +38,7 @@
         <p style="font-size: 14px; color: #64748b; margin: 0 0 16px; text-align: center;">Créez le premier compte administrateur</p>
         
         <div id="first-time-form" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; align-items: start;">
-          <div style="grid-column: 1 / -1; min-width: 0;">
+          <div style="min-width: 0;">
             <label for="first-time-uid-input" style="display: block; text-align: left; margin-bottom: 3px; color: #475569; font-size: 13px; font-weight: 600;">Identifiant</label>
             <input type="text" id="first-time-uid-input" placeholder="admin" autocomplete="off" style="width: 100%; padding: 7px 10px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; font-family: 'Inter', sans-serif; transition: border-color 0.2s; box-sizing: border-box;" />
           </div>
@@ -46,14 +46,6 @@
           <div style="min-width: 0;">
             <label for="first-time-email-input" style="display: block; text-align: left; margin-bottom: 3px; color: #475569; font-size: 13px; font-weight: 600;">Email</label>
             <input type="email" id="first-time-email-input" placeholder="admin@example.org" autocomplete="off" style="width: 100%; padding: 7px 10px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; font-family: 'Inter', sans-serif; transition: border-color 0.2s; box-sizing: border-box;" />
-          </div>
-          
-          <div style="min-width: 0;">
-            <label for="first-time-language-select" style="display: block; text-align: left; margin-bottom: 3px; color: #475569; font-size: 13px; font-weight: 600;">Langue</label>
-            <select id="first-time-language-select" style="width: 100%; padding: 7px 10px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; font-family: 'Inter', sans-serif; transition: border-color 0.2s; box-sizing: border-box; background: white; cursor: pointer;">
-              <option value="fr">Français</option>
-              <option value="en">English</option>
-            </select>
           </div>
           
           <div style="min-width: 0;">
@@ -66,12 +58,39 @@
             <input type="password" id="first-time-confirm-password-input" placeholder="Retapez le mot de passe" autocomplete="off" style="width: 100%; padding: 7px 10px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; font-family: 'Inter', sans-serif; transition: border-color 0.2s; box-sizing: border-box;" />
           </div>
           
+          <div style="min-width: 0;">
+            <label for="first-time-language-select" style="display: block; text-align: left; margin-bottom: 3px; color: #475569; font-size: 13px; font-weight: 600;">Langue</label>
+            <select id="first-time-language-select" style="width: 100%; padding: 7px 10px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; font-family: 'Inter', sans-serif; transition: border-color 0.2s; box-sizing: border-box; background: white; cursor: pointer;">
+              <option value="fr">Français</option>
+              <option value="en">English</option>
+            </select>
+          </div>
+          
           <p id="first-time-error" style="grid-column: 1 / -1; color: #ef4444; font-size: 12px; margin: 0; display: none;"></p>
         </div>
         
         <div style="margin-top: 16px;">
           <button id="first-time-create-btn" class="btn btn-primary" style="width: 100%; font-size: 15px; padding: 12px;">
             <span>Créer le compte</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="ryvie-name-section" class="status-section section">
+      <div style="margin: 0 auto; width: 75%; max-width: 600px; padding-bottom: 20px;">
+        <p style="font-size: 14px; color: #64748b; margin: 0 0 16px; text-align: center;">Donnez un nom à votre Ryvie</p>
+        
+        <div style="min-width: 0;">
+          <label for="ryvie-name-input" style="display: block; text-align: left; margin-bottom: 3px; color: #475569; font-size: 13px; font-weight: 600;">Nom du Ryvie</label>
+          <input type="text" id="ryvie-name-input" placeholder="Mon Ryvie" value="Mon Ryvie" autocomplete="off" style="width: 100%; padding: 7px 10px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; font-family: 'Inter', sans-serif; transition: border-color 0.2s; box-sizing: border-box;" />
+        </div>
+        
+        <p id="ryvie-name-error" style="color: #ef4444; font-size: 12px; margin: 8px 0 0; display: none;"></p>
+        
+        <div style="margin-top: 16px;">
+          <button id="ryvie-name-btn" class="btn btn-primary" style="width: 100%; font-size: 15px; padding: 12px;">
+            <span>Continuer</span>
           </button>
         </div>
       </div>
