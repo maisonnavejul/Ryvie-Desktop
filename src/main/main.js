@@ -155,6 +155,10 @@ if (!gotTheLock) {
   });
 
   app.whenReady().then(() => {
+    // Migrer les données depuis l'ancien dossier userData si l'app a été rebrandée
+    // (Ryvie -> Ryvie Connect) : à faire AVANT que le renderer ne lise config/profils.
+    migrateFromOldUserData();
+
     // Supprimer le raccourci NetBird au démarrage si présent
     removeNetbirdShortcut();
 
@@ -793,7 +797,7 @@ ipcMain.handle('load-config', async () => {
 
 ipcMain.handle('save-config', async (event, config) => {
   try {
-    fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+    writeJsonAtomic(CONFIG_FILE, config);
     return true;
   } catch (error) {
     console.error('Erreur lors de la sauvegarde de la config:', error);
@@ -1334,11 +1338,24 @@ ipcMain.handle('create-first-user', async (event, userData) => {
 
 // ========== GESTION MULTI-UTILISATEURS ==========
 
+// Écriture atomique : écrit dans un fichier temporaire puis renomme. Le rename étant
+// atomique sur un même volume, on ne peut jamais se retrouver avec un fichier tronqué/vide
+// si le process est tué en cours d'écriture (cause du "Unexpected end of JSON input").
+function writeJsonAtomic(filePath, obj) {
+  const tmp = filePath + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify(obj, null, 2));
+  fs.renameSync(tmp, filePath);
+}
+
 // Charger tous les utilisateurs sauvegardés
 function loadUsersData() {
   try {
     if (fs.existsSync(USERS_FILE)) {
       const data = fs.readFileSync(USERS_FILE, 'utf8');
+      // Fichier vide (ex: écriture précédente interrompue) : pas d'erreur, on repart propre
+      if (!data || !data.trim()) {
+        return { users: {} };
+      }
       const usersData = JSON.parse(data);
       
       // Migration: re-keyer les utilisateurs qui n'ont pas le format ryvieId:uid
@@ -1360,7 +1377,7 @@ function loadUsersData() {
       
       if (needsSave) {
         usersData.users = newUsers;
-        fs.writeFileSync(USERS_FILE, JSON.stringify(usersData, null, 2));
+        writeJsonAtomic(USERS_FILE, usersData);
         // Mettre à jour la clé de l'utilisateur courant aussi
         const currentKey = getCurrentUserKey();
         if (currentKey && !newUsers[currentKey]) {
@@ -1379,6 +1396,13 @@ function loadUsersData() {
     }
   } catch (error) {
     console.error('[Ryvie][Main] Erreur lecture utilisateurs:', error);
+    // Fichier non vide mais illisible : on le sauvegarde plutôt que de risquer de l'écraser
+    try {
+      if (fs.existsSync(USERS_FILE) && fs.readFileSync(USERS_FILE, 'utf8').trim()) {
+        fs.copyFileSync(USERS_FILE, USERS_FILE + '.corrupt');
+        console.warn('[Ryvie][Main] Fichier utilisateurs corrompu sauvegardé:', USERS_FILE + '.corrupt');
+      }
+    } catch (e) { /* ignore */ }
   }
   return { users: {} };
 }
@@ -1386,7 +1410,7 @@ function loadUsersData() {
 // Sauvegarder les données utilisateurs
 function saveUsersData(usersData) {
   try {
-    fs.writeFileSync(USERS_FILE, JSON.stringify(usersData, null, 2));
+    writeJsonAtomic(USERS_FILE, usersData);
     return true;
   } catch (error) {
     console.error('[Ryvie][Main] Erreur sauvegarde utilisateurs:', error);
@@ -1411,7 +1435,7 @@ function getCurrentUserKey() {
 // Définir l'utilisateur courant
 function setCurrentUserKey(userKey) {
   try {
-    fs.writeFileSync(CURRENT_USER_FILE, JSON.stringify({ currentUser: userKey }));
+    writeJsonAtomic(CURRENT_USER_FILE, { currentUser: userKey });
     return true;
   } catch (error) {
     console.error('[Ryvie][Main] Erreur sauvegarde utilisateur courant:', error);
@@ -1461,10 +1485,45 @@ function migrateOldConfig() {
   return false;
 }
 
+// Migration cross-dossier : renommer productName/name change le dossier userData
+// (%AppData%/Ryvie -> %AppData%/Ryvie Connect). Si le nouveau dossier n'a pas encore de
+// profils, on récupère ceux de l'ancien dossier pour ne pas perdre les données au rebrand.
+function migrateFromOldUserData() {
+  try {
+    // Données déjà présentes -> rien à faire
+    if (fs.existsSync(USERS_FILE) && fs.readFileSync(USERS_FILE, 'utf8').trim()) {
+      return false;
+    }
+    const appData = app.getPath('appData');
+    const currentDir = app.getPath('userData');
+    // Anciens noms de dossier possibles avant le rebrand "Ryvie Connect"
+    const legacyNames = ['Ryvie', 'Ryvie Desktop', 'ryvie-desktop', 'ryvie'];
+    for (const name of legacyNames) {
+      const oldDir = path.join(appData, name);
+      if (oldDir === currentDir) continue;
+      const oldUsers = path.join(oldDir, 'ryvie-users.json');
+      if (fs.existsSync(oldUsers) && fs.readFileSync(oldUsers, 'utf8').trim()) {
+        for (const f of ['ryvie-users.json', 'ryvie-config.json', 'ryvie-current-user.json']) {
+          const src = path.join(oldDir, f);
+          if (fs.existsSync(src)) {
+            fs.copyFileSync(src, path.join(currentDir, f));
+          }
+        }
+        console.log('[Ryvie][Main] Données utilisateur migrées depuis l\'ancien dossier:', oldDir);
+        return true;
+      }
+    }
+  } catch (error) {
+    console.error('[Ryvie][Main] Erreur migration dossier userData:', error);
+  }
+  return false;
+}
+
 // IPC: Récupérer tous les utilisateurs
 ipcMain.handle('get-all-users', async () => {
   try {
-    // Tenter la migration si nécessaire
+    // Tenter les migrations si nécessaire (dossier legacy puis ancien format)
+    migrateFromOldUserData();
     migrateOldConfig();
     
     const usersData = loadUsersData();
