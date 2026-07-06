@@ -58,7 +58,7 @@
     ],
     "publish": {
       "provider": "github",
-      "owner": "maisonnavejul",
+      "owner": "ryvieos",
       "repo": "Ryvie-Connect"
     },
     "win": {
