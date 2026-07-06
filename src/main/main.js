@@ -2,7 +2,7 @@ const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const fs = require('fs');
-const { exec } = require('child_process');
+const { exec, execSync } = require('child_process');
 
 // Désactiver l'accélération GPU pour éviter les erreurs sur certains systèmes
 app.disableHardwareAcceleration();
@@ -20,12 +20,45 @@ const IS_WINDOWS = process.platform === 'win32';
 const IS_MAC = process.platform === 'darwin';
 const IS_LINUX = process.platform === 'linux';
 
-// Chemin binaire NetBird selon la plateforme (Windows réellement utilisé, autres à compléter si besoin)
-const NETBIRD_PATH = IS_WINDOWS
+// Chemin où NetBird s'installe via le MSI / script officiel (fallback)
+const SYSTEM_NETBIRD_PATH = IS_WINDOWS
   ? 'C:\\Program Files\\Netbird\\netbird.exe'
   : IS_MAC
     ? '/usr/local/bin/netbird'
     : '/usr/bin/netbird';
+
+// Chemin du binaire NetBird embarqué dans l'app (packagé via extraResources -> resources/netbird/).
+// En dev, on le cherche dans <repo>/resources/netbird/.
+function getBundledNetbirdPath() {
+  const exe = IS_WINDOWS ? 'netbird.exe' : 'netbird';
+  // Sous-dossier par architecture (amd64 / arm64) pour livrer le bon binaire
+  const archDir = process.arch === 'arm64' ? 'arm64' : 'amd64';
+  const root = app.isPackaged
+    ? path.join(process.resourcesPath, 'netbird')
+    : path.join(__dirname, '../../resources/netbird');
+  return path.join(root, archDir, exe);
+}
+
+// Si un binaire est embarqué, on l'utilise en priorité ; sinon on retombe sur l'installation système.
+const BUNDLED_NETBIRD_PATH = getBundledNetbirdPath();
+const HAS_BUNDLED_NETBIRD = fs.existsSync(BUNDLED_NETBIRD_PATH);
+
+// Version NetBird embarquée — source unique partagée avec scripts/fetch-netbird.js
+const BUNDLED_NETBIRD_VERSION = require('../../netbird-version.json').version;
+
+// En mode embarqué (Windows), le service NetBird tourne depuis une COPIE STABLE située hors
+// du dossier d'install de l'app. Ainsi une mise à jour de l'app remplace librement le binaire
+// embarqué (jamais verrouillé par le service) ; NetBird n'est ré-déployé que quand sa version
+// change (voir maybeUpgradeNetbird). C'est ce qui évite une élévation UAC à chaque mise à jour.
+const DEPLOYED_NETBIRD_DIR = path.join(process.env.PROGRAMDATA || 'C:\\ProgramData', 'Ryvie', 'netbird');
+const DEPLOYED_NETBIRD_PATH = path.join(DEPLOYED_NETBIRD_DIR, 'netbird.exe');
+const DEPLOYED_NETBIRD_VERSION_FILE = path.join(DEPLOYED_NETBIRD_DIR, 'version.txt');
+
+// Chemin réellement utilisé par les commandes NetBird :
+// - embarqué Windows : la copie déployée (celle que fait tourner le service)
+// - sinon : installation système
+const NETBIRD_PATH = (HAS_BUNDLED_NETBIRD && IS_WINDOWS) ? DEPLOYED_NETBIRD_PATH : SYSTEM_NETBIRD_PATH;
+console.log('[Ryvie][Main] Binaire NetBird utilisé:', NETBIRD_PATH, HAS_BUNDLED_NETBIRD ? '(embarqué -> déployé)' : '(système)');
 
 // URL installeur NetBird selon la plateforme
 const NETBIRD_INSTALLER_URL = IS_WINDOWS
@@ -80,6 +113,7 @@ function createMain() {
     height: windowHeight,
     resizable: false,
     show: false,
+    backgroundColor: '#38bdf8', // évite le flash blanc lors des rechargements de page (login <-> index)
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -88,22 +122,11 @@ function createMain() {
     icon: path.join(__dirname, '../../build/icons/win/icon.ico')
   });
 
-  // Vérifier si une config existe pour déterminer quelle page charger
-  let hasConfig = false;
-  try {
-    if (fs.existsSync(CONFIG_FILE)) {
-      const data = fs.readFileSync(CONFIG_FILE, 'utf8');
-      const config = JSON.parse(data);
-      hasConfig = config && (config.ryvieId || config.setupKey);
-    }
-  } catch (error) {
-    console.error('[Ryvie][Main] Erreur lecture config:', error);
-  }
-
-  // Charger la page appropriée
-  const pageToLoad = hasConfig ? 'index.html' : 'login.html';
-  console.log('[Ryvie][Main] Chargement de la page:', pageToLoad);
-  mainWindow.loadFile(path.join(__dirname, '../renderer/' + pageToLoad));
+  // Application single-page: on charge toujours index.html.
+  // Le routeur (app.js) décide côté renderer quelle vue afficher (login vs connecté)
+  // selon la config, sans jamais recharger le document -> transitions fluides.
+  console.log('[Ryvie][Main] Chargement de la page unique: index.html');
+  mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
   mainWindow.setMenuBarVisibility(false);
 
   mainWindow.once('ready-to-show', () => {
@@ -134,7 +157,13 @@ if (!gotTheLock) {
   app.whenReady().then(() => {
     // Supprimer le raccourci NetBird au démarrage si présent
     removeNetbirdShortcut();
-    
+
+    // Si l'app a été mise à jour et embarque une nouvelle version de NetBird, mettre à jour
+    // le binaire déployé (une élévation, uniquement si le service existe et que la version diffère).
+    maybeUpgradeNetbird().catch(err => {
+      console.error('[Ryvie][Main] Erreur maybeUpgradeNetbird:', err);
+    });
+
     createSplash();
     
     // Vérifier les mises à jour AVANT d'ouvrir la fenêtre principale
@@ -302,14 +331,100 @@ function removeNetbirdShortcut() {
   });
 }
 
-// Verifie si NetBird est installe
+// Verifie si le service Windows NetBird est enregistré (mode binaire embarqué)
+function isNetbirdServiceInstalled() {
+  if (!IS_WINDOWS) return false;
+  try {
+    const out = execSync('sc query NetBird', { windowsHide: true }).toString();
+    // "sc query" renvoie STATE... si le service existe, sinon "FAILED 1060".
+    return !/FAILED|does not exist|1060/i.test(out);
+  } catch (e) {
+    return false;
+  }
+}
+
+// Verifie si NetBird est utilisable
 function isNetbirdInstalled() {
   if (!IS_WINDOWS && !IS_MAC && !IS_LINUX) {
     console.warn('[Ryvie][Main] Plateforme non supportee pour NetBird:', process.platform);
     return false;
   }
 
+  // En mode embarqué sur Windows, le binaire est toujours présent : ce qui compte
+  // c'est que le service NetBird soit enregistré (sinon `netbird up` échoue).
+  if (HAS_BUNDLED_NETBIRD && IS_WINDOWS) {
+    return isNetbirdServiceInstalled();
+  }
+
   return fs.existsSync(NETBIRD_PATH);
+}
+
+// Copie le binaire embarqué (netbird.exe + wintun.dll) vers l'emplacement stable déployé
+// (hors dossier de l'app) et écrit la version déployée. Sans élévation (création dans ProgramData).
+// wintun.dll DOIT être à côté de netbird.exe, sinon `netbird` ne peut pas créer l'interface WireGuard.
+function deployBundledNetbird() {
+  fs.mkdirSync(DEPLOYED_NETBIRD_DIR, { recursive: true });
+  fs.copyFileSync(BUNDLED_NETBIRD_PATH, DEPLOYED_NETBIRD_PATH);
+
+  const bundledWintun = path.join(path.dirname(BUNDLED_NETBIRD_PATH), 'wintun.dll');
+  if (fs.existsSync(bundledWintun)) {
+    fs.copyFileSync(bundledWintun, path.join(DEPLOYED_NETBIRD_DIR, 'wintun.dll'));
+  } else {
+    console.warn('[Ryvie][Main] wintun.dll embarqué introuvable:', bundledWintun);
+  }
+
+  fs.writeFileSync(DEPLOYED_NETBIRD_VERSION_FILE, BUNDLED_NETBIRD_VERSION);
+}
+
+// Version NetBird actuellement déployée (celle que fait tourner le service), ou null.
+function getDeployedNetbirdVersion() {
+  try {
+    return fs.readFileSync(DEPLOYED_NETBIRD_VERSION_FILE, 'utf8').trim();
+  } catch (e) {
+    return null;
+  }
+}
+
+// Met à jour le binaire NetBird déployé si la version embarquée a changé (après une MAJ de l'app).
+// Une seule élévation : arrêt du service -> remplacement du binaire (verrouillé) -> redémarrage.
+// N'agit QUE si le service est déjà installé et que la version diffère -> pas d'UAC surprise sinon.
+function maybeUpgradeNetbird() {
+  return new Promise((resolve) => {
+    if (!(HAS_BUNDLED_NETBIRD && IS_WINDOWS)) { resolve({ upgraded: false }); return; }
+    if (!isNetbirdServiceInstalled()) { resolve({ upgraded: false }); return; }
+
+    const deployedVersion = getDeployedNetbirdVersion();
+    if (deployedVersion === BUNDLED_NETBIRD_VERSION) { resolve({ upgraded: false }); return; }
+
+    console.log(`[Ryvie][Main] Mise à jour NetBird ${deployedVersion || '?'} -> ${BUNDLED_NETBIRD_VERSION}`);
+    const batPath = path.join(process.env.TEMP, 'ryvie-netbird-upgrade.bat');
+    const batContent =
+      '@echo off\r\n' +
+      'sc stop NetBird\r\n' +
+      'ping 127.0.0.1 -n 4 >nul\r\n' +
+      `copy /Y "${BUNDLED_NETBIRD_PATH}" "${DEPLOYED_NETBIRD_PATH}"\r\n` +
+      'sc start NetBird\r\n';
+    try {
+      fs.writeFileSync(batPath, batContent);
+    } catch (e) {
+      console.error('[Ryvie][Main] Erreur écriture script upgrade NetBird:', e.message);
+      resolve({ upgraded: false, error: e.message });
+      return;
+    }
+
+    const elevatedCmd = `powershell -NoProfile -Command "Start-Process -FilePath '${batPath}' -Verb RunAs -Wait"`;
+    exec(elevatedCmd, { timeout: 120000, windowsHide: true }, (err) => {
+      try { fs.unlinkSync(batPath); } catch (e) { /* ignore */ }
+      if (err) {
+        console.error('[Ryvie][Main] Erreur mise à jour NetBird:', err.message);
+        resolve({ upgraded: false, error: err.message });
+        return;
+      }
+      try { fs.writeFileSync(DEPLOYED_NETBIRD_VERSION_FILE, BUNDLED_NETBIRD_VERSION); } catch (e) { /* ignore */ }
+      console.log('[Ryvie][Main] NetBird déployé mis à jour vers', BUNDLED_NETBIRD_VERSION);
+      resolve({ upgraded: true });
+    });
+  });
 }
 
 // Installe NetBird selon le système d'exploitation
@@ -318,6 +433,49 @@ function installNetbird() {
     if (!IS_WINDOWS && !IS_MAC && !IS_LINUX) {
       console.warn('[Ryvie][Main] Plateforme non supportee pour installation NetBird:', process.platform);
       resolve({ success: false, error: 'Plateforme non supportee pour installation NetBird.' });
+      return;
+    }
+
+    // Mode binaire embarqué (Windows) : pas de téléchargement/MSI.
+    // On déploie d'abord le binaire vers l'emplacement stable (copie hors dossier app),
+    // puis on enregistre + démarre le service NetBird depuis CETTE copie.
+    // Une seule élévation UAC via un batch temporaire (les deux commandes admin d'un coup).
+    if (HAS_BUNDLED_NETBIRD && IS_WINDOWS) {
+      console.log('[Ryvie][Main] Déploiement NetBird embarqué vers:', DEPLOYED_NETBIRD_PATH);
+      try {
+        deployBundledNetbird();
+      } catch (copyErr) {
+        console.error('[Ryvie][Main] Erreur déploiement binaire NetBird:', copyErr.message);
+        resolve({ success: false, error: 'Erreur déploiement du binaire NetBird' });
+        return;
+      }
+
+      const batPath = path.join(process.env.TEMP, 'ryvie-netbird-setup.bat');
+      const batContent =
+        '@echo off\r\n' +
+        `"${DEPLOYED_NETBIRD_PATH}" service install\r\n` +
+        `"${DEPLOYED_NETBIRD_PATH}" service start\r\n`;
+      try {
+        fs.writeFileSync(batPath, batContent);
+      } catch (writeErr) {
+        console.error('[Ryvie][Main] Erreur écriture script setup NetBird:', writeErr.message);
+        resolve({ success: false, error: 'Erreur préparation setup NetBird' });
+        return;
+      }
+
+      // Start-Process -Verb RunAs déclenche l'UAC ; -Wait attend la fin du batch
+      const elevatedCmd = `powershell -NoProfile -WindowStyle Hidden -Command "Start-Process -FilePath '${batPath}' -Verb RunAs -WindowStyle Hidden -Wait"`;
+      exec(elevatedCmd, { timeout: 120000, windowsHide: true }, (installError) => {
+        try { fs.unlinkSync(batPath); } catch (e) { /* ignore */ }
+        if (installError) {
+          console.error('[Ryvie][Main] Erreur setup service NetBird embarqué:', installError.message);
+          resolve({ success: false, error: 'Installation du service annulée ou échouée' });
+          return;
+        }
+        console.log('[Ryvie][Main] Service NetBird embarqué installé et démarré');
+        // Laisser le service se stabiliser avant le `netbird up`
+        setTimeout(() => resolve({ success: true }), 3000);
+      });
       return;
     }
 

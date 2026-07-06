@@ -1,3 +1,6 @@
+// Vue LOGIN — encapsulée dans une IIFE pour isoler son scope de renderer.js
+// (les deux scripts cohabitent dans la même page en mode single-page).
+(function () {
 const LOCAL_APP_URL = 'http://ryvie.local';
 
 let uidInput, passwordInput, loginBtn, loginError;
@@ -19,9 +22,11 @@ let isConnecting = false;
 let currentConnectionAbortController = null;
 let currentConnectionMethod = 'local';
 
-// Attendre que le DOM soit complètement chargé
-document.addEventListener('DOMContentLoaded', function() {
-  console.log('[Ryvie][Login] DOM chargé, initialisation...');
+// Initialisation de la vue login. Appelée par le routeur (app.js) à chaque
+// affichage de la vue. Le grab d'éléments et l'attache des listeners sont
+// idempotents (guard dans attachEventListeners) ; l'état des champs est réinitialisé.
+function bootLogin() {
+  console.log('[Ryvie][Login] Initialisation de la vue login...');
   
   // Récupérer les éléments
   uidInput = document.getElementById('uid-input');
@@ -118,9 +123,9 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Vérifier si c'est la première fois
   checkFirstTimeSetup();
-  
+
   console.log('[Ryvie][Login] Page complètement initialisée');
-});
+}
 
 function setConnectionMethod(method) {
   currentConnectionMethod = method;
@@ -147,7 +152,13 @@ function setConnectionMethod(method) {
   }
 }
 
+let listenersAttached = false;
 function attachEventListeners() {
+  // Idempotent : les listeners ne sont attachés qu'une seule fois même si
+  // la vue login est réaffichée (ex: après déconnexion).
+  if (listenersAttached) return;
+  listenersAttached = true;
+
   if (loginBtn) {
     loginBtn.addEventListener('click', handleLogin);
   }
@@ -339,7 +350,7 @@ async function handleLogin() {
       
       // Rediriger vers la page principale
       console.log('[Ryvie][Login] Redirection vers la page principale...');
-      window.electronAPI.navigateTo('index.html');
+      window.Ryvie.showApp();
       
     } catch (error) {
       console.error('[Ryvie][Login] Erreur inattendue:', error);
@@ -439,7 +450,7 @@ async function handleLogin() {
       
       // Rediriger vers la page principale
       console.log('[Ryvie][Login] Redirection vers la page principale...');
-      window.electronAPI.navigateTo('index.html');
+      window.Ryvie.showApp();
       
     } catch (error) {
       console.error('[Ryvie][Login] Erreur inattendue:', error);
@@ -547,8 +558,8 @@ async function handleRyvieName() {
     console.log('[Ryvie][Login] Configuration sauvegardée');
     
     console.log('[Ryvie][Login] Redirection vers la page principale...');
-    window.electronAPI.navigateTo('index.html');
-    
+    window.Ryvie.showApp();
+
   } catch (error) {
     console.error('[Ryvie][Login] Erreur inattendue:', error);
     ryvieNameError.textContent = 'Erreur inattendue: ' + error.message;
@@ -966,8 +977,8 @@ async function switchUser(userKey) {
     console.log('[Ryvie][Login] Configuration utilisateur chargée');
     
     // Rediriger vers la page principale
-    window.electronAPI.navigateTo('index.html');
-    
+    window.Ryvie.showApp();
+
   } catch (error) {
     if (error.name === 'AbortError') {
       console.log('[Ryvie][Login] Connexion annulée');
@@ -1241,3 +1252,7 @@ async function handleFirstTimeSetup() {
     firstTimeCreateBtn.innerHTML = '<span>Créer le compte</span>';
   }
 }
+
+// Enregistrement auprès du routeur single-page (app.js appelle bootLogin à l'affichage)
+window.Ryvie.registerLogin({ init: bootLogin });
+})();

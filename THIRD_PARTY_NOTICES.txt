@@ -1,0 +1,68 @@
+RYVIE CONNECT — THIRD-PARTY SOFTWARE NOTICES
+=============================================
+
+Ryvie Connect distribue des composants tiers. Les mentions et licences
+ci-dessous sont fournies conformément aux conditions de redistribution de ces
+composants.
+
+--------------------------------------------------------------------------------
+1. NetBird (client)
+--------------------------------------------------------------------------------
+
+Ryvie Connect embarque et exécute le binaire client NetBird pour établir le
+tunnel réseau vers votre serveur Ryvie.
+
+Projet   : NetBird — https://github.com/netbirdio/netbird
+Licence  : BSD-3-Clause (portion client). Les composants serveur de NetBird
+           (répertoires management/, signal/, relay/, combined/) sont sous
+           AGPLv3 et NE SONT PAS distribués avec Ryvie Connect.
+
+Copyright (c) 2022 NetBird GmbH & AUTHORS
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its
+   contributors may be used to endorse or promote products derived from
+   this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+--------------------------------------------------------------------------------
+2. Wintun (Windows uniquement)
+--------------------------------------------------------------------------------
+
+Sur Windows, NetBird s'appuie sur le pilote Wintun pour créer l'interface
+réseau WireGuard. Wintun peut être embarqué dans le binaire NetBird ou livré
+sous forme de wintun.dll.
+
+Projet   : Wintun — https://www.wintun.net/
+Copyright: Copyright (c) 2018-2021 WireGuard LLC. All Rights Reserved.
+
+Le code source de Wintun est sous licence GPLv2. Les binaires précompilés
+distribués depuis wintun.net sont publiés sous une licence plus permissive
+adaptée à la redistribution au sein d'autres logiciels.
+
+IMPORTANT : si wintun.dll est livré séparément (et non déjà embarqué dans le
+binaire NetBird), inclure le texte de licence exact fourni dans l'archive .zip
+officielle de wintun.net (fichier LICENSE de l'archive du binaire précompilé).
+
+--------------------------------------------------------------------------------
+
+Pour toute question relative aux licences, contact : contact@ryvie.fr

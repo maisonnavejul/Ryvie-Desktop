@@ -1,3 +1,6 @@
+// Vue CONNECTÉ — encapsulée dans une IIFE pour isoler son scope de login.js
+// (les deux scripts cohabitent dans la même page en mode single-page).
+(function () {
 const LOCAL_APP_URL = 'http://ryvie.local';
 
 let currentConfig = null;
@@ -145,6 +148,14 @@ function maybeAutoOpen() {
 // Logique de connexion
 async function checkConnection() {
   console.log('[Ryvie][Renderer] === Vérification connexion démarrée ===');
+
+  // Single-page : le DOM persiste entre les vues -> réinitialiser l'état du bouton de
+  // déconnexion (désactivé par une déconnexion précédente) à chaque affichage de la vue.
+  if (disconnectBtn) {
+    disconnectBtn.disabled = false;
+    disconnectBtn.classList.remove('loading');
+  }
+
   showLoading();
 
   // Charger la config sauvegardée
@@ -154,7 +165,7 @@ async function checkConnection() {
   // Si pas de config, rediriger vers login
   if (!savedConfig || (!savedConfig.ryvieId && !savedConfig.setupKey)) {
     console.log('[Ryvie][Renderer] Aucune configuration trouvée, redirection vers login');
-    window.electronAPI.navigateTo('login.html');
+    window.Ryvie.showLogin();
     return;
   }
 
@@ -289,6 +300,7 @@ async function switchToRemoteMode(config) {
       
       console.log('[Ryvie][Renderer] ✅ Connexion MANUELLE réussie');
       currentConfig = {
+        name: config.name,
         mode: 'manual',
         ryvieId: config.ryvieId,
         tunnelHost: config.tunnelHost,
@@ -318,6 +330,7 @@ async function switchToRemoteMode(config) {
         if (!testResponse.ok) throw new Error(`HTTP ${testResponse.status}`);
         console.log('[Ryvie][Renderer] ✅ Connexion remote via domaine réussie');
         currentConfig = {
+          name: config.name,
           mode: 'remote',
           ryvieId: config.ryvieId,
           url: publicUrl,
@@ -340,6 +353,7 @@ async function switchToRemoteMode(config) {
         if (!testResponse.ok) throw new Error(`HTTP ${testResponse.status}`);
         console.log('[Ryvie][Renderer] ✅ Connexion remote via tunnel réussie');
         currentConfig = {
+          name: config.name,
           mode: 'remote',
           ryvieId: config.ryvieId,
           url: tunnelUrl,
@@ -392,6 +406,7 @@ async function switchToRemoteMode(config) {
       
       console.log('[Ryvie][Renderer] ✅ Passage en mode REMOTE');
       currentConfig = {
+        name: config.name,
         mode: 'remote',
         ryvieId: config.ryvieId,
         domains: config.domains,
@@ -493,9 +508,9 @@ function stopVpnStatusCheck() {
 
 function updateUI(config) {
   console.log('[Ryvie][Renderer] 🖥️  Mise à jour UI:', config.mode.toUpperCase(), '- ryvieId:', config.ryvieId);
-  // Afficher le nom du Ryvie dans le titre
-  if (appTitleEl && config.name) {
-    appTitleEl.textContent = config.name;
+  // Afficher le nom du Ryvie dans le titre (fallback si non défini, ex: anciennes configs)
+  if (appTitleEl) {
+    appTitleEl.textContent = config.name || 'Mon Ryvie';
   }
   if (config.mode === 'local') {
     connectionType.innerHTML = '<strong>Mode:</strong> Connexion Automatique <span aria-hidden="true">🏠</span>';
@@ -554,10 +569,21 @@ retryBtn.addEventListener('click', () => {
   checkConnection();
 });
 
+// Ferme une modale avec une animation de sortie (le DOM persiste en single-page).
+function closeModalAnimated(modalEl) {
+  if (!modalEl || modalEl.classList.contains('hidden')) return;
+  modalEl.classList.add('closing');
+  setTimeout(() => {
+    modalEl.classList.add('hidden');
+    modalEl.classList.remove('closing');
+  }, 180);
+}
+
 if (disconnectBtn) {
   disconnectBtn.addEventListener('click', () => {
-    // Afficher la modale de confirmation
+    // Afficher la modale de confirmation (fondu d'entrée via l'animation CSS)
     if (disconnectModal) {
+      disconnectModal.classList.remove('closing');
       disconnectModal.classList.remove('hidden');
     }
   });
@@ -566,11 +592,9 @@ if (disconnectBtn) {
 if (confirmDisconnectBtn) {
   confirmDisconnectBtn.addEventListener('click', async () => {
     console.log('[Ryvie][Renderer] Déconnexion confirmée...');
-    
-    // Fermer la modale
-    if (disconnectModal) {
-      disconnectModal.classList.add('hidden');
-    }
+
+    // Fermer la modale (fondu de sortie)
+    closeModalAnimated(disconnectModal);
     
     // Désactiver le bouton de déconnexion
     if (disconnectBtn) {
@@ -599,20 +623,16 @@ if (confirmDisconnectBtn) {
       console.error('[Ryvie][Renderer] Erreur déconnexion en arrière-plan:', error);
     });
     
-    // Rediriger immédiatement vers la page de connexion (via main process pour contexte propre)
-    console.log('[Ryvie][Renderer] Redirection immédiate vers la page de connexion');
-    setTimeout(() => {
-      window.electronAPI.navigateTo('login.html');
-    }, 100);
+    // Bascule vers la vue login (le routeur gère la transition fondu de sortie/entrée)
+    console.log('[Ryvie][Renderer] Retour à la vue de connexion');
+    window.Ryvie.showLogin();
   });
 }
 
 if (cancelDisconnectBtn) {
   cancelDisconnectBtn.addEventListener('click', () => {
-    // Fermer la modale sans déconnecter
-    if (disconnectModal) {
-      disconnectModal.classList.add('hidden');
-    }
+    // Fermer la modale sans déconnecter (fondu de sortie)
+    closeModalAnimated(disconnectModal);
   });
 }
 
@@ -828,5 +848,8 @@ if (window.electronAPI && window.electronAPI.onNetbirdStatus) {
   });
 }
 
-// Démarrage de l'application
-checkConnection();
+// Enregistrement auprès du routeur single-page.
+// checkConnection() est appelé par app.js à chaque affichage de la vue connectée
+// (au démarrage si une config existe, et après un login/switch de profil).
+window.Ryvie.registerApp({ init: checkConnection });
+})();

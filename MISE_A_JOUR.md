@@ -8,13 +8,13 @@ Le système de mise à jour automatique est maintenant configuré avec **electro
 
 ### 1. Mettre à jour le package.json
 
-Dans `package.json`, vérifiez que la section `publish` pointe bien vers le dépôt `ryvieos/Ryvie-Desktop` (déjà configuré par défaut) :
+Dans `package.json`, vérifiez que la section `publish` pointe bien vers le dépôt `maisonnavejul/Ryvie-Connect` (déjà configuré par défaut) :
 
 ```json
 "publish": {
   "provider": "github",
-  "owner": "ryvieos",
-  "repo": "Ryvie-Desktop"
+  "owner": "maisonnavejul",
+  "repo": "Ryvie-Connect"
 }
 ```
 

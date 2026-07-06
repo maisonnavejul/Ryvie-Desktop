@@ -5,3 +5,8 @@ build/
 *.log
 .DS_Store
 Thumbs.db
+
+# Binaires NetBird embarqués : téléchargés au build via scripts/fetch-netbird.js
+# (non versionnés pour ne pas alourdir le dépôt). Le README du dossier reste suivi.
+resources/netbird/amd64/
+resources/netbird/arm64/

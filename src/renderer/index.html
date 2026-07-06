@@ -3,164 +3,362 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ryvie Desktop</title>
+  <title>Ryvie Connect</title>
   <link rel="stylesheet" href="styles.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-  <div class="container">
-    <button id="disconnect-btn" class="icon-btn" type="button" title="Se déconnecter">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M13 7V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2h6a2 2 0 002-2v-1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-    </button>
-    <div class="header">
-      <img src="../../ryvielogo0.png" alt="Ryvie Logo" class="logo" />
-      <h1 id="app-title">Ryvie Desktop</h1>
-    </div>
-
-    <div id="loading" class="status-section section visible active">
-      <div class="spinner"></div>
-      <p style="color: #64748b; font-size: 15px; margin-top: 10px;">Connexion en cours...</p>
-    </div>
-
-    <div id="connected" class="status-section section hidden">
-      <div class="status-badge success">
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" fill="currentColor"/>
-        </svg>
-        Connecté
+  <!-- ============================================================= -->
+  <!-- VUE LOGIN (sélection de profil / connexion)                    -->
+  <!-- ============================================================= -->
+  <div id="login-view" class="view">
+    <div class="container">
+      <img src="../../ryvielogo0.png" alt="Ryvie Logo" class="logo logo-corner" />
+      <div class="header">
+        <h1>Choisir un Ryvie</h1>
       </div>
-      <div class="connection-info">
-        <p id="connection-type"></p>
-        <p id="vpn-status" style="display: flex; align-items: center; gap: 8px; margin: 8px 0;">
-          <strong>Accès distant:</strong>
-          <span id="vpn-status-badge" style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 12px; font-size: 13px; font-weight: 500;">
-            <span id="vpn-status-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #94a3b8;"></span>
-            <span id="vpn-status-text">Vérification...</span>
-          </span>
-        </p>
-        <p id="ryvie-id" class="ryvie-id-row">
-          <strong>Ryvie ID:</strong>
-          <span id="ryvie-id-value" class="ryvie-id-masked">••••••••••••••••••••••••</span>
-          <button id="show-ryvie-id-btn" class="btn-link" type="button" title="Afficher/Masquer">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 5C7 5 2.73 8.11 1 12.5 2.73 16.89 7 20 12 20s9.27-3.11 11-7.5C21.27 8.11 17 5 12 5zm0 12.5c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" fill="currentColor"/>
-            </svg>
+
+      <div id="loading-section" class="status-section section visible active" style="text-align: center; padding: 30px 0;">
+        <div class="spinner"></div>
+        <p style="color: #64748b; font-size: 13px; margin-top: 8px;">Vérification en cours...</p>
+      </div>
+
+      <div id="users-selection-section" class="status-section section">
+        <div class="users-selection-container">
+          <p id="users-error" style="color: #ef4444; font-size: 12px; margin: 0 0 16px; text-align: center; display: none;"></p>
+
+          <div id="users-list" class="users-list" style="display: grid; gap: 14px; overflow-y: auto; padding-right: 8px;"></div>
+        </div>
+
+        <button id="add-user-btn" class="btn btn-secondary add-user-btn">
+          <span>Ajouter un Ryvie</span>
+        </button>
+      </div>
+
+      <div id="first-time-section" class="status-section section">
+        <div style="margin: 0 auto; width: 75%; max-width: 600px; padding-bottom: 20px;">
+          <p style="font-size: 14px; color: #64748b; margin: 0 0 16px; text-align: center;">Créez le premier compte administrateur</p>
+
+          <div id="first-time-form" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; align-items: start;">
+            <div style="min-width: 0;">
+              <label for="first-time-uid-input" style="display: block; text-align: left; margin-bottom: 3px; color: #475569; font-size: 13px; font-weight: 600;">Identifiant</label>
+              <input type="text" id="first-time-uid-input" placeholder="admin" autocomplete="off" style="width: 100%; padding: 7px 10px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; font-family: 'Inter', sans-serif; transition: border-color 0.2s; box-sizing: border-box;" />
+            </div>
+
+            <div style="min-width: 0;">
+              <label for="first-time-email-input" style="display: block; text-align: left; margin-bottom: 3px; color: #475569; font-size: 13px; font-weight: 600;">Email</label>
+              <input type="email" id="first-time-email-input" placeholder="admin@example.org" autocomplete="off" style="width: 100%; padding: 7px 10px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; font-family: 'Inter', sans-serif; transition: border-color 0.2s; box-sizing: border-box;" />
+            </div>
+
+            <div style="min-width: 0;">
+              <label for="first-time-password-input" style="display: block; text-align: left; margin-bottom: 3px; color: #475569; font-size: 13px; font-weight: 600;">Mot de passe</label>
+              <input type="password" id="first-time-password-input" placeholder="Min. 6 caractères" autocomplete="off" style="width: 100%; padding: 7px 10px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; font-family: 'Inter', sans-serif; transition: border-color 0.2s; box-sizing: border-box;" />
+            </div>
+
+            <div style="min-width: 0;">
+              <label for="first-time-confirm-password-input" style="display: block; text-align: left; margin-bottom: 3px; color: #475569; font-size: 13px; font-weight: 600;">Confirmer</label>
+              <input type="password" id="first-time-confirm-password-input" placeholder="Retapez le mot de passe" autocomplete="off" style="width: 100%; padding: 7px 10px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; font-family: 'Inter', sans-serif; transition: border-color 0.2s; box-sizing: border-box;" />
+            </div>
+
+            <div style="min-width: 0;">
+              <label for="first-time-language-select" style="display: block; text-align: left; margin-bottom: 3px; color: #475569; font-size: 13px; font-weight: 600;">Langue</label>
+              <select id="first-time-language-select" style="width: 100%; padding: 7px 10px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; font-family: 'Inter', sans-serif; transition: border-color 0.2s; box-sizing: border-box; background: white; cursor: pointer;">
+                <option value="fr">Français</option>
+                <option value="en">English</option>
+              </select>
+            </div>
+
+            <p id="first-time-error" style="grid-column: 1 / -1; color: #ef4444; font-size: 12px; margin: 0; display: none;"></p>
+          </div>
+
+          <div style="margin-top: 16px;">
+            <button id="first-time-create-btn" class="btn btn-primary" style="width: 100%; font-size: 15px; padding: 12px;">
+              <span>Créer le compte</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div id="ryvie-name-section" class="status-section section">
+        <div style="margin: 0 auto; width: 75%; max-width: 600px; padding-bottom: 20px;">
+          <p style="font-size: 14px; color: #64748b; margin: 0 0 16px; text-align: center;">Donnez un nom à votre Ryvie</p>
+
+          <div style="min-width: 0;">
+            <label for="ryvie-name-input" style="display: block; text-align: left; margin-bottom: 3px; color: #475569; font-size: 13px; font-weight: 600;">Nom du Ryvie</label>
+            <input type="text" id="ryvie-name-input" placeholder="Mon Ryvie" value="Mon Ryvie" autocomplete="off" style="width: 100%; padding: 7px 10px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; font-family: 'Inter', sans-serif; transition: border-color 0.2s; box-sizing: border-box;" />
+          </div>
+
+          <p id="ryvie-name-error" style="color: #ef4444; font-size: 12px; margin: 8px 0 0; display: none;"></p>
+
+          <div style="margin-top: 16px;">
+            <button id="ryvie-name-btn" class="btn btn-primary" style="width: 100%; font-size: 15px; padding: 12px;">
+              <span>Continuer</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div id="login-section" class="status-section section">
+        <button id="back-to-users-btn" class="icon-btn" type="button" title="Retour à la sélection de profil" style="position: absolute; top: 20px; right: 20px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M13 7V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2h6a2 2 0 002-2v-1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <div class="login-section-content login-form-container">
+          <!-- Champ Nom du profil -->
+          <div class="form-group">
+            <label for="profile-name-input" class="form-label">Nom du profil</label>
+            <input type="text" id="profile-name-input" class="form-input" placeholder="Nom du profil" value="Mon Ryvie" autocomplete="off" />
+          </div>
+
+          <!-- Séparateur -->
+          <div class="form-separator">
+            <div class="form-separator-line"></div>
+            <span class="form-separator-text">Méthode de connexion</span>
+            <div class="form-separator-line"></div>
+          </div>
+
+          <!-- Onglets de sélection de méthode -->
+          <div class="method-tabs">
+            <button id="method-local-tab" class="method-tab active">
+              Automatique
+            </button>
+            <button id="method-manual-tab" class="method-tab">
+              Manuelle
+            </button>
+          </div>
+
+          <!-- Champs de connexion -->
+          <div id="local-fields" style="display: block;">
+            <div class="form-group">
+              <label for="uid-input" class="form-label">Nom d'utilisateur</label>
+              <input type="text" id="uid-input" class="form-input" placeholder="Identifiant" autocomplete="off" />
+            </div>
+            <div class="form-group">
+              <label for="password-input" class="form-label">Mot de passe</label>
+              <input type="password" id="password-input" class="form-input" placeholder="Mot de passe" autocomplete="off" />
+            </div>
+          </div>
+
+          <div id="manual-fields" style="display: none;">
+            <div class="form-group">
+              <label for="manual-setup-key-input" class="form-label">Clé de configuration</label>
+              <input type="text" id="manual-setup-key-input" class="form-input" placeholder="Collez votre clé de configuration ici" autocomplete="off" />
+            </div>
+          </div>
+
+          <p id="login-error" style="color: #ef4444; font-size: clamp(12px, 1.8vh, 14px); margin: 0 0 clamp(12px, 2vh, 20px); text-align: center; display: none;"></p>
+
+          <!-- Bouton -->
+          <button id="login-btn" class="btn btn-primary login-submit-btn">
+            <span>Se connecter</span>
           </button>
-        </p>
-      </div>
-      <div class="actions-row">
-        <button id="open-ryvie-btn" class="btn btn-primary">
-          <span>Ouvrir Ryvie</span>
-        </button>
-        <button id="refresh-btn" class="btn btn-secondary">
-          <span>Actualiser</span>
-        </button>
+        </div>
       </div>
     </div>
 
-    <div id="disconnected" class="status-section section hidden">
-      <div class="status-badge" style="background: linear-gradient(135deg, #0ea5e9, #2563eb); color: white;">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- Modal de confirmation suppression -->
+    <div id="confirm-delete-modal" class="modal hidden" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 99999; display: none; align-items: center; justify-content: center; backdrop-filter: blur(2px);">
+      <div style="background: white; border-radius: 16px; padding: 24px; max-width: 360px; width: 90%; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);">
+        <div style="width: 48px; height: 48px; margin: 0 auto 16px; background: #ef4444; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14zM10 11v6M14 11v6" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <h2 style="font-size: 18px; margin: 0 0 8px; text-align: center; color: #0f172a;">Supprimer l'appareil</h2>
+        <p id="confirm-delete-message" style="margin: 0 0 20px; color: #64748b; font-size: 14px; text-align: center;">Voulez-vous vraiment supprimer cet appareil ?</p>
+        <div style="display: flex; gap: 10px;">
+          <button id="confirm-delete-btn" class="btn btn-primary" style="flex: 1; font-size: 13px; background: #ef4444;"><span>Supprimer</span></button>
+          <button id="cancel-delete-btn" class="btn btn-secondary" style="flex: 1; font-size: 13px;"><span>Annuler</span></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de renommage de profil -->
+    <div id="rename-modal" class="modal hidden" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 99999; display: none; align-items: center; justify-content: center; backdrop-filter: blur(2px);">
+      <div style="background: white; border-radius: 16px; padding: 24px; max-width: 400px; width: 90%; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);">
+        <div style="width: 48px; height: 48px; margin: 0 auto 16px; background: #3b82f6; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <h2 style="font-size: 18px; margin: 0 0 8px; text-align: center; color: #0f172a;">Renommer le profil</h2>
+        <p style="margin: 0 0 20px; color: #64748b; font-size: 14px; text-align: center;">Entrez le nouveau nom pour ce profil</p>
+        <div style="margin-bottom: 20px;">
+          <label for="rename-input" style="display: block; text-align: left; margin-bottom: 6px; color: #475569; font-size: 12px; font-weight: 600;">Nom du profil</label>
+          <input type="text" id="rename-input" placeholder="Nouveau nom" autocomplete="off" style="width: 100%; padding: 10px 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; font-family: 'Inter', sans-serif; transition: border-color 0.2s; box-sizing: border-box;" />
+          <p id="rename-error" style="color: #ef4444; font-size: 12px; margin-top: 6px; display: none;"></p>
+        </div>
+        <div class="rename-modal-buttons" style="display: flex; gap: 10px;">
+          <button id="confirm-rename-btn" class="btn btn-primary" style="flex: 1; font-size: 13px;"><span>Renommer</span></button>
+          <button id="cancel-rename-btn" class="btn btn-secondary" style="flex: 1; font-size: 13px;"><span>Annuler</span></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================= -->
+  <!-- VUE CONNECTÉ (statut, ouvrir Ryvie, déconnexion)               -->
+  <!-- ============================================================= -->
+  <div id="app-view" class="view">
+    <div class="container">
+      <button id="disconnect-btn" class="icon-btn" type="button" title="Se déconnecter">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           <path d="M13 7V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2h6a2 2 0 002-2v-1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
+      </button>
+      <div class="header">
+        <img src="../../ryvielogo0.png" alt="Ryvie Logo" class="logo" />
+        <h1 id="app-title">Ryvie Connect</h1>
       </div>
-      <h3 style="font-size: 18px; font-weight: 600; color: #0f172a; margin: 16px 0 8px;">Déconnecté</h3>
-      <p style="color: #64748b; font-size: 14px; margin-bottom: 20px;">Choisissez comment vous souhaitez vous reconnecter</p>
-      <div class="actions-row">
-        <button id="retry-connection-btn" class="btn btn-secondary">
-          <span>Réessayer</span>
-        </button>
-      </div>
-    </div>
 
-    <div id="error" class="status-section section hidden">
-      <div class="status-badge error">
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" fill="currentColor"/>
-        </svg>
-        Erreur de connexion
+      <div id="loading" class="status-section section visible active">
+        <div class="spinner"></div>
+        <p style="color: #64748b; font-size: 15px; margin-top: 10px;">Connexion en cours...</p>
       </div>
-      <p id="error-message" class="error-message">Impossible de se connecter à Ryvie</p>
-      <div class="actions-row">
-        <button id="retry-btn" class="btn btn-secondary">
-          <span>Réessayer</span>
-        </button>
-      </div>
-    </div>
-  </div>
 
-  <!-- Modales en dehors du container pour couvrir toute la fenêtre -->
-  <div id="warning-modal" class="modal hidden">
-    <div class="modal-content">
-      <div style="width: 60px; height: 60px; margin: 0 auto 20px; background: linear-gradient(135deg, #fbbf24, #f59e0b); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 25px rgba(251, 191, 36, 0.4);">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </div>
-      <h2>Nouveau Ryvie détecté</h2>
-      <p style="margin-bottom: 20px;">Un autre serveur Ryvie a été détecté sur votre réseau local.</p>
-      <div style="background: rgba(102, 126, 234, 0.05); padding: 16px; border-radius: 12px; margin: 20px 0;">
-        <p style="margin: 8px 0;"><span style="color: #64748b;">Actuel :</span> <strong id="current-id"></strong></p>
-        <p style="margin: 8px 0;"><span style="color: #64748b;">Nouveau :</span> <strong id="new-id"></strong></p>
-      </div>
-      <p style="color: #64748b; font-size: 13px; margin-bottom: 24px;">Voulez-vous vous connecter à ce nouveau serveur ?</p>
-      <div class="modal-buttons">
-        <button id="accept-btn" class="btn btn-primary">Accepter</button>
-        <button id="refuse-btn" class="btn btn-secondary">Refuser</button>
-      </div>
-    </div>
-  </div>
-
-  <div id="disconnect-modal" class="modal hidden">
-    <div class="modal-content">
-      <div style="width: 60px; height: 60px; margin: 0 auto 20px; background: linear-gradient(135deg, #ef4444, #dc2626); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 25px rgba(239, 68, 68, 0.4);">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M16 17l5-5-5-5M21 12H9" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M13 7V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2h6a2 2 0 002-2v-1" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </div>
-      <h2>Confirmer la déconnexion</h2>
-      <p style="margin-bottom: 20px; color: #64748b;">Êtes-vous sûr de vouloir vous déconnecter ?</p>
-      <p style="margin-bottom: 20px; color: #64748b; font-size: 13px;">Toutes vos données de connexion seront supprimées. Vous devrez vous reconnecter avec vos identifiants.</p>
-      <div class="modal-buttons">
-        <button id="confirm-disconnect-btn" class="btn btn-primary" style="background: linear-gradient(135deg, #ef4444, #dc2626);"><span>Se déconnecter</span></button>
-        <button id="cancel-disconnect-btn" class="btn btn-secondary"><span>Annuler</span></button>
-      </div>
-    </div>
-  </div>
-
-  <div id="update-modal" class="modal hidden">
-    <div class="modal-content">
-      <div style="width: 60px; height: 60px; margin: 0 auto 20px; background: linear-gradient(135deg, #10b981, #059669); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </div>
-      <h2>Mise à jour disponible</h2>
-      <p style="margin-bottom: 20px; color: #64748b;">Une nouvelle version de Ryvie Desktop est disponible.</p>
-      <div style="background: rgba(102, 126, 234, 0.05); padding: 16px; border-radius: 12px; margin: 20px 0;">
-        <p style="margin: 8px 0;"><span style="color: #64748b;">Version :</span> <strong id="update-version"></strong></p>
-      </div>
-      <div id="update-progress" style="display: none; margin: 20px 0;">
-        <div style="background: #e2e8f0; border-radius: 8px; height: 8px; overflow: hidden;">
-          <div id="update-progress-bar" style="background: linear-gradient(90deg, #667eea, #764ba2); height: 100%; width: 0%; transition: width 0.3s;"></div>
+      <div id="connected" class="status-section section hidden">
+        <div class="status-badge success">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" fill="currentColor"/>
+          </svg>
+          Connecté
         </div>
-        <p id="update-progress-text" style="text-align: center; margin-top: 8px; color: #64748b; font-size: 13px;">Téléchargement en cours...</p>
+        <div class="connection-info">
+          <p id="connection-type"></p>
+          <p id="vpn-status" style="display: flex; align-items: center; gap: 8px; margin: 8px 0;">
+            <strong>Accès distant:</strong>
+            <span id="vpn-status-badge" style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 12px; font-size: 13px; font-weight: 500;">
+              <span id="vpn-status-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #94a3b8;"></span>
+              <span id="vpn-status-text">Vérification...</span>
+            </span>
+          </p>
+          <p id="ryvie-id" class="ryvie-id-row">
+            <strong>Ryvie ID:</strong>
+            <span id="ryvie-id-value" class="ryvie-id-masked">••••••••••••••••••••••••</span>
+            <button id="show-ryvie-id-btn" class="btn-link" type="button" title="Afficher/Masquer">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 5C7 5 2.73 8.11 1 12.5 2.73 16.89 7 20 12 20s9.27-3.11 11-7.5C21.27 8.11 17 5 12 5zm0 12.5c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" fill="currentColor"/>
+              </svg>
+            </button>
+          </p>
+        </div>
+        <div class="actions-row">
+          <button id="open-ryvie-btn" class="btn btn-primary">
+            <span>Ouvrir Ryvie</span>
+          </button>
+          <button id="refresh-btn" class="btn btn-secondary">
+            <span>Actualiser</span>
+          </button>
+        </div>
       </div>
-      <div class="modal-buttons">
-        <button id="download-update-btn" class="btn btn-primary"><span>Télécharger</span></button>
-        <button id="install-update-btn" class="btn btn-primary" style="display: none;"><span>Installer et redémarrer</span></button>
-        <button id="close-update-btn" class="btn btn-secondary"><span>Plus tard</span></button>
+
+      <div id="disconnected" class="status-section section hidden">
+        <div class="status-badge" style="background: linear-gradient(135deg, #0ea5e9, #2563eb); color: white;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M13 7V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2h6a2 2 0 002-2v-1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <h3 style="font-size: 18px; font-weight: 600; color: #0f172a; margin: 16px 0 8px;">Déconnecté</h3>
+        <p style="color: #64748b; font-size: 14px; margin-bottom: 20px;">Choisissez comment vous souhaitez vous reconnecter</p>
+        <div class="actions-row">
+          <button id="retry-connection-btn" class="btn btn-secondary">
+            <span>Réessayer</span>
+          </button>
+        </div>
+      </div>
+
+      <div id="error" class="status-section section hidden">
+        <div class="status-badge error">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" fill="currentColor"/>
+          </svg>
+          Erreur de connexion
+        </div>
+        <p id="error-message" class="error-message">Impossible de se connecter à Ryvie</p>
+        <div class="actions-row">
+          <button id="retry-btn" class="btn btn-secondary">
+            <span>Réessayer</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modales de la vue connecté -->
+    <div id="warning-modal" class="modal hidden">
+      <div class="modal-content">
+        <div style="width: 60px; height: 60px; margin: 0 auto 20px; background: linear-gradient(135deg, #fbbf24, #f59e0b); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 25px rgba(251, 191, 36, 0.4);">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <h2>Nouveau Ryvie détecté</h2>
+        <p style="margin-bottom: 20px;">Un autre serveur Ryvie a été détecté sur votre réseau local.</p>
+        <div style="background: rgba(102, 126, 234, 0.05); padding: 16px; border-radius: 12px; margin: 20px 0;">
+          <p style="margin: 8px 0;"><span style="color: #64748b;">Actuel :</span> <strong id="current-id"></strong></p>
+          <p style="margin: 8px 0;"><span style="color: #64748b;">Nouveau :</span> <strong id="new-id"></strong></p>
+        </div>
+        <p style="color: #64748b; font-size: 13px; margin-bottom: 24px;">Voulez-vous vous connecter à ce nouveau serveur ?</p>
+        <div class="modal-buttons">
+          <button id="accept-btn" class="btn btn-primary">Accepter</button>
+          <button id="refuse-btn" class="btn btn-secondary">Refuser</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="disconnect-modal" class="modal hidden">
+      <div class="modal-content">
+        <div style="width: 60px; height: 60px; margin: 0 auto 20px; background: linear-gradient(135deg, #ef4444, #dc2626); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 25px rgba(239, 68, 68, 0.4);">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M16 17l5-5-5-5M21 12H9" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M13 7V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2h6a2 2 0 002-2v-1" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <h2>Confirmer la déconnexion</h2>
+        <p style="margin-bottom: 20px; color: #64748b;">Êtes-vous sûr de vouloir vous déconnecter ?</p>
+        <p style="margin-bottom: 20px; color: #64748b; font-size: 13px;">Toutes vos données de connexion seront supprimées. Vous devrez vous reconnecter avec vos identifiants.</p>
+        <div class="modal-buttons">
+          <button id="confirm-disconnect-btn" class="btn btn-primary" style="background: linear-gradient(135deg, #ef4444, #dc2626);"><span>Se déconnecter</span></button>
+          <button id="cancel-disconnect-btn" class="btn btn-secondary"><span>Annuler</span></button>
+        </div>
+      </div>
+    </div>
+
+    <div id="update-modal" class="modal hidden">
+      <div class="modal-content">
+        <div style="width: 60px; height: 60px; margin: 0 auto 20px; background: linear-gradient(135deg, #10b981, #059669); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <h2>Mise à jour disponible</h2>
+        <p style="margin-bottom: 20px; color: #64748b;">Une nouvelle version de Ryvie Connect est disponible.</p>
+        <div style="background: rgba(102, 126, 234, 0.05); padding: 16px; border-radius: 12px; margin: 20px 0;">
+          <p style="margin: 8px 0;"><span style="color: #64748b;">Version :</span> <strong id="update-version"></strong></p>
+        </div>
+        <div id="update-progress" style="display: none; margin: 20px 0;">
+          <div style="background: #e2e8f0; border-radius: 8px; height: 8px; overflow: hidden;">
+            <div id="update-progress-bar" style="background: linear-gradient(90deg, #667eea, #764ba2); height: 100%; width: 0%; transition: width 0.3s;"></div>
+          </div>
+          <p id="update-progress-text" style="text-align: center; margin-top: 8px; color: #64748b; font-size: 13px;">Téléchargement en cours...</p>
+        </div>
+        <div class="modal-buttons">
+          <button id="download-update-btn" class="btn btn-primary"><span>Télécharger</span></button>
+          <button id="install-update-btn" class="btn btn-primary" style="display: none;"><span>Installer et redémarrer</span></button>
+          <button id="close-update-btn" class="btn btn-secondary"><span>Plus tard</span></button>
+        </div>
       </div>
     </div>
   </div>
 
+  <script src="app.js"></script>
+  <script src="login.js"></script>
   <script src="renderer.js"></script>
 </body>
 </html>

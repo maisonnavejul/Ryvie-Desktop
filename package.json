@@ -1,19 +1,20 @@
 {
-  "name": "ryvie-desktop",
+  "name": "ryvie-connect",
   "version": "0.0.32",
   "description": "Application desktop pour Ryvie avec détection de connexion locale/publique",
   "main": "src/main/main.js",
   "scripts": {
     "start": "electron .",
     "build": "electron-builder",
-    "build:win": "npm run icons:win && electron-builder --win --publish never",
+    "build:win": "npm run icons:win && npm run fetch:netbird && electron-builder --win --publish never",
     "build:mac": "npm run icons:mac && electron-builder --mac --publish never",
     "build:linux": "electron-builder --linux --publish never",
-    "build:all": "npm run icons:all && electron-builder -mwl",
+    "build:all": "npm run icons:all && npm run fetch:netbird && electron-builder -mwl",
+    "fetch:netbird": "node scripts/fetch-netbird.js",
     "icons:win": "node scripts/generate-icon.js",
     "icons:mac": "node scripts/generate-icon-mac.js",
     "icons:all": "node scripts/generate-icon.js && node scripts/generate-icon-mac.js",
-    "publish": "npm run icons:all && electron-builder -mwl --publish always"
+    "publish": "npm run icons:all && npm run fetch:netbird && electron-builder -mwl --publish always"
   },
   "keywords": [
     "ryvie",
@@ -40,11 +41,25 @@
   },
   "build": {
     "appId": "com.ryvie.desktop",
-    "productName": "Ryvie",
+    "productName": "Ryvie Connect",
+    "extraResources": [
+      {
+        "from": "resources/netbird",
+        "to": "netbird",
+        "filter": [
+          "**/*",
+          "!**/*.md"
+        ]
+      },
+      {
+        "from": "THIRD_PARTY_NOTICES.txt",
+        "to": "THIRD_PARTY_NOTICES.txt"
+      }
+    ],
     "publish": {
       "provider": "github",
       "owner": "maisonnavejul",
-      "repo": "Ryvie-Desktop"
+      "repo": "Ryvie-Connect"
     },
     "win": {
       "target": [
