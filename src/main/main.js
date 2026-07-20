@@ -70,6 +70,12 @@ let splashWindow;
 let updateInProgress = false;
 let updateInfo = null;
 let updateUserChoiceMade = false;
+// true = vérification du démarrage (flux splash), false = vérification pendant l'utilisation (flux modale in-app)
+let updateCheckIsStartup = true;
+// Évite de re-proposer en boucle la même version si l'utilisateur a fermé la modale
+let notifiedUpdateVersion = null;
+let periodicUpdateTimer = null;
+const UPDATE_CHECK_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
 
 // Configuration de l'auto-updater
 autoUpdater.autoDownload = false;
@@ -138,6 +144,14 @@ function createMain() {
     if (mainWindow) {
       mainWindow.show();
     }
+    // À partir d'ici l'utilisateur est dans l'app : les vérifications suivantes
+    // doivent passer par la modale in-app, plus par le splash.
+    updateCheckIsStartup = false;
+    startPeriodicUpdateChecks();
+  });
+
+  mainWindow.on('closed', () => {
+    mainWindow = null;
   });
 }
 
@@ -178,35 +192,66 @@ if (!gotTheLock) {
       }, 1500);
     } else {
       console.log('[Ryvie][Main] Vérification des mises à jour au démarrage...');
-      checkForUpdates();
+      checkForUpdates(true);
     }
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) {
         createSplash();
-        setTimeout(() => {
-          createMain();
-        }, 1500);
+        if (app.isPackaged) {
+          checkForUpdates(true);
+        } else {
+          setTimeout(() => {
+            createMain();
+          }, 1500);
+        }
       }
     });
   });
 }
 
+// On quitte réellement sur toutes les plateformes, y compris macOS.
+// Comportement voulu : fermer la fenêtre (croix rouge) = quitter l'app, comme sur Windows.
+// Sans ça, sur macOS l'app restait vivante dans le Dock et la vérification de mise à jour
+// au démarrage (qui n'a lieu qu'une fois dans app.whenReady) n'était jamais rejouée.
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
+  app.quit();
 });
 
 // ========================================
 // AUTO-UPDATER FUNCTIONS
 // ========================================
 
-function checkForUpdates() {
-  console.log('[Ryvie][Main] Vérification des mises à jour...');
+function sendToSplash(channel, payload) {
+  if (splashWindow && !splashWindow.isDestroyed()) {
+    splashWindow.webContents.send(channel, payload);
+  }
+}
+
+function sendToMain(channel, payload) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send(channel, payload);
+  }
+}
+
+// isStartup = true : flux splash (avant ouverture de la fenêtre principale)
+// isStartup = false : flux modale in-app (l'utilisateur est déjà dans l'app)
+function checkForUpdates(isStartup = false) {
+  updateCheckIsStartup = isStartup;
+  console.log('[Ryvie][Main] Vérification des mises à jour...', isStartup ? '(démarrage)' : '(en cours d\'utilisation)');
   autoUpdater.checkForUpdates().catch(err => {
     console.error('[Ryvie][Main] Erreur lors de la vérification des mises à jour:', err);
   });
+}
+
+// Vérifie périodiquement les mises à jour pendant que l'app est ouverte, pour que
+// l'utilisateur n'ait pas besoin de redémarrer l'app pour se voir proposer une version.
+function startPeriodicUpdateChecks() {
+  if (!app.isPackaged || periodicUpdateTimer) return;
+  periodicUpdateTimer = setInterval(() => {
+    if (updateInProgress) return; // une mise à jour est déjà en cours de traitement
+    checkForUpdates(false);
+  }, UPDATE_CHECK_INTERVAL_MS);
 }
 
 // IPC SPLASH UPDATE CHOICE
@@ -242,30 +287,45 @@ ipcMain.handle('skip-update', async () => {
 
 autoUpdater.on('checking-for-update', () => {
   console.log('[Ryvie][Main] Vérification des mises à jour en cours...');
-  if (splashWindow && !splashWindow.isDestroyed()) {
-    splashWindow.webContents.send('update-status', { status: 'checking', message: 'Vérification des mises à jour...' });
-  }
+  sendToSplash('update-status', { status: 'checking', message: 'Vérification des mises à jour...' });
 });
 
 autoUpdater.on('update-available', (info) => {
   console.log('[Ryvie][Main] Mise à jour disponible:', info.version);
   updateInProgress = true;
   updateInfo = info;
-  if (splashWindow && !splashWindow.isDestroyed()) {
-    splashWindow.webContents.send('update-status', { 
+
+  if (updateCheckIsStartup) {
+    // Flux démarrage : on propose la mise à jour dans le splash
+    sendToSplash('update-status', {
       status: 'available',
       message: `Mise à jour disponible : ${info.version}`,
       version: info.version
     });
+    return;
   }
+
+  // Flux in-app : on affiche la modale dans la fenêtre principale.
+  // Une seule notification par version pour ne pas re-proposer en boucle si l'utilisateur ferme la modale.
+  if (notifiedUpdateVersion === info.version) {
+    console.log('[Ryvie][Main] Version déjà proposée à l\'utilisateur, on ne renotifie pas:', info.version);
+    updateInProgress = false;
+    return;
+  }
+  notifiedUpdateVersion = info.version;
+  sendToMain('update-available', info);
 });
 
 autoUpdater.on('update-not-available', (info) => {
   console.log('[Ryvie][Main] Aucune mise à jour disponible. Version actuelle:', info.version);
-  // Pas de mise à jour, ouvrir la fenêtre principale normalement
-  setTimeout(() => {
-    createMain();
-  }, 1000);
+  updateInProgress = false;
+  // Ne créer la fenêtre principale que si elle n'existe pas déjà : sinon une vérification
+  // périodique pendant l'utilisation ouvrirait une seconde fenêtre.
+  if (!mainWindow) {
+    setTimeout(() => {
+      createMain();
+    }, 1000);
+  }
 });
 
 autoUpdater.on('error', (err) => {
@@ -277,36 +337,39 @@ autoUpdater.on('error', (err) => {
       createMain();
     }, 1000);
   }
-  if (splashWindow && !splashWindow.isDestroyed()) {
-    splashWindow.webContents.send('update-status', { status: 'error', message: 'Erreur lors de la mise à jour' });
-  }
+  sendToSplash('update-status', { status: 'error', message: 'Erreur lors de la mise à jour' });
+  sendToMain('update-error', err && err.message ? err.message : String(err));
 });
 
 autoUpdater.on('download-progress', (progressObj) => {
   console.log(`[Ryvie][Main] Téléchargement: ${Math.round(progressObj.percent)}%`);
-  if (splashWindow && !splashWindow.isDestroyed()) {
-    splashWindow.webContents.send('update-status', {
-      status: 'downloading',
-      message: `Téléchargement en cours...`,
-      percent: progressObj.percent
-    });
-  }
+  sendToSplash('update-status', {
+    status: 'downloading',
+    message: `Téléchargement en cours...`,
+    percent: progressObj.percent
+  });
+  sendToMain('download-progress', progressObj);
 });
 
 autoUpdater.on('update-downloaded', (info) => {
   console.log('[Ryvie][Main] Mise à jour téléchargée:', info.version);
-  if (splashWindow && !splashWindow.isDestroyed()) {
-    splashWindow.webContents.send('update-status', {
+
+  if (updateCheckIsStartup) {
+    // Flux démarrage : installation et redémarrage automatiques
+    sendToSplash('update-status', {
       status: 'installing',
       message: 'Installation en cours...'
     });
+    setTimeout(() => {
+      console.log('[Ryvie][Main] Installation et redémarrage...');
+      // isSilent=true pour éviter l'affichage de l'installateur, isForceRunAfter=true pour relancer l'app
+      autoUpdater.quitAndInstall(true, true);
+    }, 1500);
+    return;
   }
-  // Installer et redémarrer automatiquement immédiatement
-  setTimeout(() => {
-    console.log('[Ryvie][Main] Installation et redémarrage...');
-    // isSilent=true pour éviter l'affichage de l'installateur, isForceRunAfter=true pour relancer l'app
-    autoUpdater.quitAndInstall(true, true);
-  }, 1500);
+
+  // Flux in-app : on laisse l'utilisateur cliquer sur "Installer" dans la modale
+  sendToMain('update-downloaded', info);
 });
 
 // ========================================
@@ -1022,6 +1085,7 @@ ipcMain.handle('install-update', async () => {
 ipcMain.handle('check-for-updates', async () => {
   try {
     console.log('[Ryvie][Main] Vérification manuelle des mises à jour...');
+    updateCheckIsStartup = false;
     const result = await autoUpdater.checkForUpdates();
     return { success: true, updateInfo: result.updateInfo };
   } catch (error) {

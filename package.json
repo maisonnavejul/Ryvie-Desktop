@@ -108,9 +108,11 @@
       "entitlements": "build/entitlements.mac.plist",
       "entitlementsInherit": "build/entitlements.mac.plist",
       "identity": "Jules Maisonnave (GW9M6A3925)",
-      "notarize": true
+      "notarize": true,
+      "artifactName": "Ryvie-Connect-${version}-${arch}-mac.${ext}"
     },
     "dmg": {
+      "artifactName": "Ryvie-Connect-${version}-${arch}.${ext}",
       "contents": [
         {
           "x": 130,
