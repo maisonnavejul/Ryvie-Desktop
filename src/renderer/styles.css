@@ -737,3 +737,66 @@ h1 {
   box-shadow: 0 4px 14px rgba(27, 172, 237, 0.3);
   margin-top: clamp(8px, 2vh, 18px);
 }
+/* ============================================================
+   SÉLECTEUR DE LANGUE (écran de connexion)
+   ============================================================ */
+.language-switcher {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 10;
+}
+
+.language-switcher select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 5px 26px 5px 10px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  background-color: #fff;
+  /* Chevron dessiné en SVG inline pour éviter toute ressource externe */
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.language-switcher select:hover,
+.language-switcher select:focus {
+  border-color: #38bdf8;
+  outline: none;
+}
+
+/* ============================================================
+   ÉCRAN DE CHOIX DE LANGUE (premier lancement)
+   ============================================================ */
+.language-choice-list {
+  display: grid;
+  gap: 12px;
+  width: 75%;
+  max-width: 320px;
+  margin: 0 auto;
+}
+
+.language-choice-btn {
+  width: 100%;
+  font-size: 15px;
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+/* Les drapeaux sont des emojis « regional indicator ». Windows ne les rend pas
+   (Segoe UI Emoji ne les contient pas) et affiche « FR » / « GB » à la place :
+   dégradation acceptable, le libellé de la langue reste à côté. */
+.flag {
+  font-size: 20px;
+  line-height: 1;
+}

@@ -10,6 +10,9 @@ app.disableHardwareAcceleration();
 const CONFIG_FILE = path.join(app.getPath('userData'), 'ryvie-config.json');
 const USERS_FILE = path.join(app.getPath('userData'), 'ryvie-users.json');
 const CURRENT_USER_FILE = path.join(app.getPath('userData'), 'ryvie-current-user.json');
+// Préférences applicatives (langue...). Fichier distinct de la config de connexion :
+// la déconnexion efface ryvie-config.json mais ne doit pas réinitialiser la langue.
+const SETTINGS_FILE = path.join(app.getPath('userData'), 'ryvie-settings.json');
 const LOCAL_MACHINE_ID_URL = 'http://ryvie.local:3002/api/machine-id';
 const LOCAL_AUTH_URL = 'http://ryvie.local:3002/api/authenticate';
 const LOCAL_DOMAINS_URL = 'http://ryvie.local:3002/api/settings/ryvie-domains';
@@ -259,12 +262,13 @@ ipcMain.handle('start-update', async () => {
   try {
     updateUserChoiceMade = true;
     if (!updateInfo) {
-      return { success: false, error: 'Aucune mise à jour détectée' };
+      return { success: false, errorKey: 'update.noneDetected' };
     }
     if (splashWindow && !splashWindow.isDestroyed()) {
       splashWindow.webContents.send('update-status', {
         status: 'downloading',
-        message: `Téléchargement de la version ${updateInfo.version}...`,
+        key: 'update.downloadingVersion',
+        params: { version: updateInfo.version },
         percent: 0
       });
     }
@@ -287,7 +291,8 @@ ipcMain.handle('skip-update', async () => {
 
 autoUpdater.on('checking-for-update', () => {
   console.log('[Ryvie][Main] Vérification des mises à jour en cours...');
-  sendToSplash('update-status', { status: 'checking', message: 'Vérification des mises à jour...' });
+  // On envoie une clé i18n (et non du texte figé) : c'est le renderer qui traduit.
+  sendToSplash('update-status', { status: 'checking', key: 'update.checking' });
 });
 
 autoUpdater.on('update-available', (info) => {
@@ -299,7 +304,8 @@ autoUpdater.on('update-available', (info) => {
     // Flux démarrage : on propose la mise à jour dans le splash
     sendToSplash('update-status', {
       status: 'available',
-      message: `Mise à jour disponible : ${info.version}`,
+      key: 'update.available',
+      params: { version: info.version },
       version: info.version
     });
     return;
@@ -337,7 +343,7 @@ autoUpdater.on('error', (err) => {
       createMain();
     }, 1000);
   }
-  sendToSplash('update-status', { status: 'error', message: 'Erreur lors de la mise à jour' });
+  sendToSplash('update-status', { status: 'error', key: 'update.error' });
   sendToMain('update-error', err && err.message ? err.message : String(err));
 });
 
@@ -345,7 +351,7 @@ autoUpdater.on('download-progress', (progressObj) => {
   console.log(`[Ryvie][Main] Téléchargement: ${Math.round(progressObj.percent)}%`);
   sendToSplash('update-status', {
     status: 'downloading',
-    message: `Téléchargement en cours...`,
+    key: 'update.downloading',
     percent: progressObj.percent
   });
   sendToMain('download-progress', progressObj);
@@ -358,7 +364,7 @@ autoUpdater.on('update-downloaded', (info) => {
     // Flux démarrage : installation et redémarrage automatiques
     sendToSplash('update-status', {
       status: 'installing',
-      message: 'Installation en cours...'
+      key: 'update.installing'
     });
     setTimeout(() => {
       console.log('[Ryvie][Main] Installation et redémarrage...');
@@ -843,6 +849,45 @@ ipcMain.handle('navigate-to', async (event, page) => {
     mainWindow.loadFile(path.join(__dirname, '../renderer/' + page));
   }
   return { success: true };
+});
+
+// IPC LANGUE / PRÉFÉRENCES
+function readSettings() {
+  try {
+    if (fs.existsSync(SETTINGS_FILE)) {
+      return JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8')) || {};
+    }
+  } catch (error) {
+    console.error('[Ryvie][Main] Erreur lecture des préférences:', error);
+  }
+  return {};
+}
+
+// language vaut null tant que l'utilisateur n'a jamais choisi : le renderer
+// affiche alors l'écran de choix de langue au premier lancement.
+ipcMain.handle('get-language', async () => {
+  const settings = readSettings();
+  return {
+    language: settings.language || null,
+    systemLocale: app.getLocale()
+  };
+});
+
+ipcMain.handle('set-language', async (event, language) => {
+  try {
+    if (language !== 'fr' && language !== 'en') {
+      console.warn('[Ryvie][Main] Langue non supportée refusée:', language);
+      return { success: false, error: 'Langue non supportée' };
+    }
+    const settings = readSettings();
+    settings.language = language;
+    writeJsonAtomic(SETTINGS_FILE, settings);
+    console.log('[Ryvie][Main] Langue enregistrée:', language);
+    return { success: true, language };
+  } catch (error) {
+    console.error('[Ryvie][Main] Erreur sauvegarde de la langue:', error);
+    return { success: false, error: error.message };
+  }
 });
 
 // IPC CONFIG

@@ -39,7 +39,9 @@ function bootLogin() {
   localFields = document.getElementById('local-fields');
   manualFields = document.getElementById('manual-fields');
   manualSetupKeyInput = document.getElementById('manual-setup-key-input');
-  headerTitle = document.querySelector('.header h1');
+  // Ciblage par id : plusieurs vues possèdent un `.header h1` (choix de langue,
+  // login, vue connectée), un sélecteur générique attraperait la mauvaise.
+  headerTitle = document.getElementById('login-header-title');
   backToUsersBtn = document.getElementById('back-to-users-btn');
   
   // Éléments first-time setup
@@ -106,7 +108,7 @@ function bootLogin() {
   if (loginBtn) {
     loginBtn.disabled = false;
     loginBtn.classList.remove('loading');
-    loginBtn.innerHTML = '<span>Se connecter</span>';
+    loginBtn.innerHTML = `<span>${t('common.signIn')}</span>`;
   }
   
   if (loginError) {
@@ -260,14 +262,14 @@ async function handleLogin() {
     const password = passwordInput.value.trim();
     
     if (!profileName || !uid || !password) {
-      loginError.textContent = 'Veuillez remplir tous les champs';
+      loginError.textContent = t('errors.fillAllFields');
       loginError.style.display = 'block';
       return;
     }
     
     loginBtn.disabled = true;
     loginBtn.classList.add('loading');
-    loginBtn.innerHTML = '<span class="btn-spinner"></span><span>Connexion...</span>';
+    loginBtn.innerHTML = `<span class="btn-spinner"></span><span>${t('common.connecting')}</span>`;
     loginError.style.display = 'none';
     
     try {
@@ -277,11 +279,11 @@ async function handleLogin() {
       
       if (!authResult.success) {
         console.error('[Ryvie][Login] Erreur authentification:', authResult.error);
-        loginError.textContent = 'Erreur d\'authentification: ' + authResult.error;
+        loginError.textContent = t('errors.authError', { details: authResult.error });
         loginError.style.display = 'block';
         loginBtn.disabled = false;
         loginBtn.classList.remove('loading');
-        loginBtn.innerHTML = '<span>Se connecter</span>';
+        loginBtn.innerHTML = `<span>${t('common.signIn')}</span>`;
         return;
       }
       
@@ -354,18 +356,18 @@ async function handleLogin() {
       
     } catch (error) {
       console.error('[Ryvie][Login] Erreur inattendue:', error);
-      loginError.textContent = 'Erreur inattendue: ' + error.message;
+      loginError.textContent = t('errors.unexpected', { details: error.message });
       loginError.style.display = 'block';
       loginBtn.disabled = false;
       loginBtn.classList.remove('loading');
-      loginBtn.innerHTML = '<span>Se connecter</span>';
+      loginBtn.innerHTML = `<span>${t('common.signIn')}</span>`;
     }
   } else {
     // Mode manuel
     const setupKey = manualSetupKeyInput ? manualSetupKeyInput.value.trim() : '';
     
     if (!profileName || !setupKey) {
-      loginError.textContent = 'Veuillez remplir tous les champs';
+      loginError.textContent = t('errors.fillAllFields');
       loginError.style.display = 'block';
       return;
     }
@@ -373,7 +375,7 @@ async function handleLogin() {
     // Parse le format UUID-IP (ex: E455957B-10FE-4ED0-9F43-26D55E826E36-100.104.13.12)
     const lastDashIndex = setupKey.lastIndexOf('-');
     if (lastDashIndex === -1) {
-      loginError.textContent = 'Format de clé invalide (attendu: UUID-IP)';
+      loginError.textContent = t('errors.invalidKeyFormat');
       loginError.style.display = 'block';
       return;
     }
@@ -382,21 +384,21 @@ async function handleLogin() {
     const tunnelIp = setupKey.substring(lastDashIndex + 1);
     
     if (!key || !tunnelIp) {
-      loginError.textContent = 'Clé de configuration incomplète';
+      loginError.textContent = t('errors.incompleteKey');
       loginError.style.display = 'block';
       return;
     }
     
     const ipRegex = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/;
     if (!ipRegex.test(tunnelIp)) {
-      loginError.textContent = 'Format d\'IP invalide dans la clé (ex: UUID-100.64.0.1)';
+      loginError.textContent = t('errors.invalidIpInKey');
       loginError.style.display = 'block';
       return;
     }
     
     loginBtn.disabled = true;
     loginBtn.classList.add('loading');
-    loginBtn.innerHTML = '<span class="btn-spinner"></span><span>Connexion...</span>';
+    loginBtn.innerHTML = `<span class="btn-spinner"></span><span>${t('common.connecting')}</span>`;
     loginError.style.display = 'none';
     
     try {
@@ -406,11 +408,11 @@ async function handleLogin() {
       
       if (!setupResult.success) {
         console.error('[Ryvie][Login] Erreur setup NetBird:', setupResult.error);
-        loginError.textContent = 'Erreur de configuration: ' + setupResult.error;
+        loginError.textContent = t('errors.configError', { details: setupResult.error });
         loginError.style.display = 'block';
         loginBtn.disabled = false;
         loginBtn.classList.remove('loading');
-        loginBtn.innerHTML = '<span>Se connecter</span>';
+        loginBtn.innerHTML = `<span>${t('common.signIn')}</span>`;
         return;
       }
       
@@ -454,11 +456,11 @@ async function handleLogin() {
       
     } catch (error) {
       console.error('[Ryvie][Login] Erreur inattendue:', error);
-      loginError.textContent = 'Erreur inattendue: ' + error.message;
+      loginError.textContent = t('errors.unexpected', { details: error.message });
       loginError.style.display = 'block';
       loginBtn.disabled = false;
       loginBtn.classList.remove('loading');
-      loginBtn.innerHTML = '<span>Se connecter</span>';
+      loginBtn.innerHTML = `<span>${t('common.signIn')}</span>`;
     }
   }
 }
@@ -467,13 +469,13 @@ async function handleRyvieName() {
   const ryvieName = ryvieNameInput.value.trim();
   
   if (!ryvieName) {
-    ryvieNameError.textContent = 'Veuillez entrer un nom';
+    ryvieNameError.textContent = t('errors.enterName');
     ryvieNameError.style.display = 'block';
     return;
   }
   
   if (!pendingFirstTimeData) {
-    ryvieNameError.textContent = 'Erreur: données manquantes';
+    ryvieNameError.textContent = t('errors.missingData');
     ryvieNameError.style.display = 'block';
     return;
   }
@@ -482,7 +484,7 @@ async function handleRyvieName() {
   
   ryvieNameBtn.disabled = true;
   ryvieNameBtn.classList.add('loading');
-  ryvieNameBtn.innerHTML = '<span class="btn-spinner"></span><span>Connexion...</span>';
+  ryvieNameBtn.innerHTML = `<span class="btn-spinner"></span><span>${t('common.connecting')}</span>`;
   ryvieNameError.style.display = 'none';
   
   try {
@@ -492,11 +494,11 @@ async function handleRyvieName() {
     
     if (!authResult.success) {
       console.error('[Ryvie][Login] Authentification échouée:', authResult.error);
-      ryvieNameError.textContent = 'Erreur d\'authentification';
+      ryvieNameError.textContent = t('errors.authFailed');
       ryvieNameError.style.display = 'block';
       ryvieNameBtn.disabled = false;
       ryvieNameBtn.classList.remove('loading');
-      ryvieNameBtn.innerHTML = '<span>Continuer</span>';
+      ryvieNameBtn.innerHTML = `<span>${t('common.continue')}</span>`;
       return;
     }
     
@@ -506,11 +508,11 @@ async function handleRyvieName() {
     
     if (!domainsResult.success) {
       console.error('[Ryvie][Login] Erreur récupération domaines');
-      ryvieNameError.textContent = 'Erreur lors de la récupération des informations';
+      ryvieNameError.textContent = t('errors.fetchInfoError');
       ryvieNameError.style.display = 'block';
       ryvieNameBtn.disabled = false;
       ryvieNameBtn.classList.remove('loading');
-      ryvieNameBtn.innerHTML = '<span>Continuer</span>';
+      ryvieNameBtn.innerHTML = `<span>${t('common.continue')}</span>`;
       return;
     }
     
@@ -562,11 +564,11 @@ async function handleRyvieName() {
 
   } catch (error) {
     console.error('[Ryvie][Login] Erreur inattendue:', error);
-    ryvieNameError.textContent = 'Erreur inattendue: ' + error.message;
+    ryvieNameError.textContent = t('errors.unexpected', { details: error.message });
     ryvieNameError.style.display = 'block';
     ryvieNameBtn.disabled = false;
     ryvieNameBtn.classList.remove('loading');
-    ryvieNameBtn.innerHTML = '<span>Continuer</span>';
+    ryvieNameBtn.innerHTML = `<span>${t('common.continue')}</span>`;
   }
 }
 
@@ -619,8 +621,11 @@ function activateSection(sectionEl) {
 }
 
 function setCompactHeader(compact) {
-  const title = document.querySelector('.header h1');
-  const header = document.querySelector('.header');
+  // Portée limitée à la vue login : un sélecteur global viserait le header de
+  // l'écran de choix de langue, qui apparaît en premier dans le document.
+  const loginView = document.getElementById('login-view');
+  const title = loginView ? loginView.querySelector('.header h1') : null;
+  const header = loginView ? loginView.querySelector('.header') : null;
   if (compact) {
     if (title) { title.style.fontSize = '18px'; }
     if (header) { header.style.marginBottom = '6px'; }
@@ -656,7 +661,7 @@ function showLoginForm() {
   hideLoading();
   setCompactHeader(false);
   if (headerTitle) {
-    headerTitle.textContent = 'Créer un profil';
+    headerTitle.textContent = t('login.createProfile');
   }
   activateSection(loginSection);
   
@@ -672,9 +677,9 @@ function showSection(sectionId) {
   // Mettre à jour le titre du header selon la section
   if (headerTitle) {
     if (sectionId === 'login-section') {
-      headerTitle.textContent = 'Créer un profil';
+      headerTitle.textContent = t('login.createProfile');
     } else if (sectionId === 'users-selection-section') {
-      headerTitle.textContent = 'Choisir un Ryvie';
+      headerTitle.textContent = t('login.chooseRyvie');
     }
   }
   
@@ -693,7 +698,7 @@ function loadAndShowUsers(users) {
   hideLoading();
   setCompactHeader(false);
   if (headerTitle) {
-    headerTitle.textContent = 'Choisir un Ryvie';
+    headerTitle.textContent = t('login.chooseRyvie');
   }
   activateSection(usersSelectionSection);
   
@@ -712,7 +717,7 @@ function displayAllUsers() {
   if (usersArray.length === 0) {
     const emptyMsg = document.createElement('div');
     emptyMsg.style.cssText = 'text-align: center; padding: 20px; color: #64748b; font-size: 13px;';
-    emptyMsg.textContent = 'Aucun compte enregistré. Cliquez sur "Ajouter" pour en créer un.';
+    emptyMsg.textContent = t('login.noAccounts');
     usersList.appendChild(emptyMsg);
     return;
   }
@@ -814,7 +819,7 @@ function displayAllUsers() {
       margin-left: 4px;
       flex-shrink: 0;
     `;
-    renameBtn.title = 'Renommer ce profil';
+    renameBtn.title = t('login.renameThisProfile');
     
     renameBtn.addEventListener('mouseenter', () => {
       renameBtn.style.background = '#3b82f6';
@@ -863,7 +868,7 @@ function displayAllUsers() {
       margin-left: 4px;
       flex-shrink: 0;
     `;
-    deleteBtn.title = 'Supprimer cet appareil';
+    deleteBtn.title = t('login.deleteThisDevice');
     
     deleteBtn.addEventListener('mouseenter', () => {
       deleteBtn.style.background = '#ef4444';
@@ -899,7 +904,7 @@ function displayAllUsers() {
       userBtn.style.background = 'linear-gradient(135deg, #f0f4ff, #e8eeff)';
       userBtn.innerHTML = `
         <span class="btn-spinner" style="width: 20px; height: 20px; border-width: 2.5px;"></span>
-        <span style="font-weight: 600; color: #4f46e5; font-size: 15px;">Connexion à ${user.name || user.uid || 'Mon Ryvie'}...</span>
+        <span style="font-weight: 600; color: #4f46e5; font-size: 15px;">${t('login.connectingTo', { name: user.name || user.uid || t('ryvieName.default') })}</span>
       `;
       
       try {
@@ -966,7 +971,7 @@ async function switchUser(userKey) {
     if (!switchResult.success) {
       console.error('[Ryvie][Login] Erreur switch utilisateur:', switchResult.error);
       if (usersError) {
-        usersError.textContent = 'Erreur lors du changement d\'appareil: ' + switchResult.error;
+        usersError.textContent = t('errors.switchDevice', { details: switchResult.error });
         usersError.style.display = 'block';
       }
       return;
@@ -986,7 +991,7 @@ async function switchUser(userKey) {
     }
     console.error('[Ryvie][Login] Erreur switch utilisateur:', error);
     if (usersError) {
-      usersError.textContent = 'Erreur lors du changement d\'appareil: ' + error.message;
+      usersError.textContent = t('errors.switchDevice', { details: error.message });
       usersError.style.display = 'block';
     }
   } finally {
@@ -1037,7 +1042,7 @@ function resetUserButtons() {
 function showConfirmDeleteModal(userKey, userName) {
   userToDelete = { key: userKey, name: userName };
   if (confirmDeleteMessage) {
-    confirmDeleteMessage.textContent = `Voulez-vous vraiment supprimer l'appareil "${userName}" ?`;
+    confirmDeleteMessage.textContent = t('modal.deleteMessageNamed', { name: userName });
   }
   if (confirmDeleteModal) {
     confirmDeleteModal.style.display = 'flex';
@@ -1094,7 +1099,7 @@ async function executeRename() {
   const newName = renameInput.value.trim();
   
   if (!newName) {
-    renameError.textContent = 'Veuillez entrer un nom pour le profil';
+    renameError.textContent = t('errors.enterProfileName');
     renameError.style.display = 'block';
     return;
   }
@@ -1125,7 +1130,7 @@ async function executeRename() {
     
   } catch (error) {
     console.error('[Ryvie][Login] Erreur lors du renommage:', error);
-    renameError.textContent = 'Erreur lors du renommage: ' + error.message;
+    renameError.textContent = t('errors.renameError', { details: error.message });
     renameError.style.display = 'block';
   }
 }
@@ -1142,7 +1147,7 @@ async function executeRemoveUser() {
     if (!result.success) {
       console.error('[Ryvie][Login] Erreur suppression utilisateur:', result.error);
       if (usersError) {
-        usersError.textContent = 'Erreur lors de la suppression de l\'appareil: ' + result.error;
+        usersError.textContent = t('errors.deleteError', { details: result.error });
         usersError.style.display = 'block';
       }
       return;
@@ -1160,7 +1165,7 @@ async function executeRemoveUser() {
   } catch (error) {
     console.error('[Ryvie][Login] Erreur suppression utilisateur:', error);
     if (usersError) {
-      usersError.textContent = 'Erreur lors de la suppression de l\'appareil: ' + error.message;
+      usersError.textContent = t('errors.deleteError', { details: error.message });
       usersError.style.display = 'block';
     }
   }
@@ -1174,33 +1179,33 @@ async function handleFirstTimeSetup() {
   const confirmPassword = firstTimeConfirmPasswordInput.value.trim();
   
   if (!uid || !email || !password || !confirmPassword) {
-    firstTimeError.textContent = 'Veuillez remplir tous les champs';
+    firstTimeError.textContent = t('errors.fillAllFields');
     firstTimeError.style.display = 'block';
     return;
   }
   
   if (password !== confirmPassword) {
-    firstTimeError.textContent = 'Les mots de passe ne correspondent pas';
+    firstTimeError.textContent = t('errors.passwordMismatch');
     firstTimeError.style.display = 'block';
     return;
   }
   
   if (password.length < 6) {
-    firstTimeError.textContent = 'Le mot de passe doit contenir au moins 6 caractères';
+    firstTimeError.textContent = t('errors.passwordTooShort');
     firstTimeError.style.display = 'block';
     return;
   }
   
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) {
-    firstTimeError.textContent = 'Adresse email invalide';
+    firstTimeError.textContent = t('errors.invalidEmail');
     firstTimeError.style.display = 'block';
     return;
   }
   
   firstTimeCreateBtn.disabled = true;
   firstTimeCreateBtn.classList.add('loading');
-  firstTimeCreateBtn.innerHTML = '<span class="btn-spinner"></span><span>Création...</span>';
+  firstTimeCreateBtn.innerHTML = `<span class="btn-spinner"></span><span>${t('common.creating')}</span>`;
   firstTimeError.style.display = 'none';
   
   try {
@@ -1216,11 +1221,11 @@ async function handleFirstTimeSetup() {
     
     if (!createResult.success) {
       console.error('[Ryvie][Login] Erreur création utilisateur:', createResult.error);
-      firstTimeError.textContent = createResult.error || 'Erreur lors de la création';
+      firstTimeError.textContent = createResult.error || t('errors.createError');
       firstTimeError.style.display = 'block';
       firstTimeCreateBtn.disabled = false;
       firstTimeCreateBtn.classList.remove('loading');
-      firstTimeCreateBtn.innerHTML = '<span>Créer le compte</span>';
+      firstTimeCreateBtn.innerHTML = `<span>${t('firstTime.createAccount')}</span>`;
       return;
     }
     
@@ -1245,14 +1250,22 @@ async function handleFirstTimeSetup() {
     
   } catch (error) {
     console.error('[Ryvie][Login] Erreur inattendue:', error);
-    firstTimeError.textContent = 'Erreur inattendue: ' + error.message;
+    firstTimeError.textContent = t('errors.unexpected', { details: error.message });
     firstTimeError.style.display = 'block';
     firstTimeCreateBtn.disabled = false;
     firstTimeCreateBtn.classList.remove('loading');
-    firstTimeCreateBtn.innerHTML = '<span>Créer le compte</span>';
+    firstTimeCreateBtn.innerHTML = `<span>${t('firstTime.createAccount')}</span>`;
   }
 }
 
 // Enregistrement auprès du routeur single-page (app.js appelle bootLogin à l'affichage)
+// La liste des profils est construite en JS : les attributs data-i18n du HTML
+// ne la couvrent pas, il faut donc la régénérer à chaque changement de langue.
+document.addEventListener('ryvie:language-changed', () => {
+  if (usersList && allUsers) {
+    displayAllUsers();
+  }
+});
+
 window.Ryvie.registerLogin({ init: bootLogin });
 })();

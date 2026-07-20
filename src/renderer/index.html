@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -11,18 +11,47 @@
 </head>
 <body>
   <!-- ============================================================= -->
+  <!-- VUE CHOIX DE LANGUE (uniquement au tout premier lancement)      -->
+  <!-- Volontairement bilingue : on ne connaît pas encore la langue.   -->
+  <!-- ============================================================= -->
+  <div id="language-view" class="view">
+    <div class="container">
+      <img src="../../ryvielogo0.png" alt="Ryvie Logo" class="logo" />
+      <div class="header">
+        <h1>Choisissez votre langue<br /><span style="font-size: 0.7em; color: #64748b;">Choose your language</span></h1>
+      </div>
+      <div class="language-choice-list">
+        <button class="btn btn-secondary language-choice-btn" data-lang="fr" type="button">
+          <span class="flag" aria-hidden="true">🇫🇷</span>
+          <span>Français</span>
+        </button>
+        <button class="btn btn-secondary language-choice-btn" data-lang="en" type="button">
+          <span class="flag" aria-hidden="true">🇬🇧</span>
+          <span>English</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================= -->
   <!-- VUE LOGIN (sélection de profil / connexion)                    -->
   <!-- ============================================================= -->
   <div id="login-view" class="view">
     <div class="container">
       <img src="../../ryvielogo0.png" alt="Ryvie Logo" class="logo logo-corner" />
+      <div class="language-switcher">
+        <select id="language-select" aria-label="Language">
+          <option value="fr">🇫🇷 FR</option>
+          <option value="en">🇬🇧 EN</option>
+        </select>
+      </div>
       <div class="header">
-        <h1>Choisir un Ryvie</h1>
+        <h1 id="login-header-title" data-i18n="login.chooseRyvie"></h1>
       </div>
 
       <div id="loading-section" class="status-section section visible active" style="text-align: center; padding: 30px 0;">
         <div class="spinner"></div>
-        <p style="color: #64748b; font-size: 13px; margin-top: 8px;">Vérification en cours...</p>
+        <p style="color: #64748b; font-size: 13px; margin-top: 8px;" data-i18n="common.checking"></p>
       </div>
 
       <div id="users-selection-section" class="status-section section">
@@ -33,37 +62,37 @@
         </div>
 
         <button id="add-user-btn" class="btn btn-secondary add-user-btn">
-          <span>Ajouter un Ryvie</span>
+          <span data-i18n="login.addRyvie"></span>
         </button>
       </div>
 
       <div id="first-time-section" class="status-section section">
         <div style="margin: 0 auto; width: 75%; max-width: 600px; padding-bottom: 20px;">
-          <p style="font-size: 14px; color: #64748b; margin: 0 0 16px; text-align: center;">Créez le premier compte administrateur</p>
+          <p style="font-size: 14px; color: #64748b; margin: 0 0 16px; text-align: center;" data-i18n="firstTime.subtitle"></p>
 
           <div id="first-time-form" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; align-items: start;">
             <div style="min-width: 0;">
-              <label for="first-time-uid-input" style="display: block; text-align: left; margin-bottom: 3px; color: #475569; font-size: 13px; font-weight: 600;">Identifiant</label>
+              <label for="first-time-uid-input" style="display: block; text-align: left; margin-bottom: 3px; color: #475569; font-size: 13px; font-weight: 600;" data-i18n="firstTime.username"></label>
               <input type="text" id="first-time-uid-input" placeholder="admin" autocomplete="off" style="width: 100%; padding: 7px 10px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; font-family: 'Inter', sans-serif; transition: border-color 0.2s; box-sizing: border-box;" />
             </div>
 
             <div style="min-width: 0;">
-              <label for="first-time-email-input" style="display: block; text-align: left; margin-bottom: 3px; color: #475569; font-size: 13px; font-weight: 600;">Email</label>
+              <label for="first-time-email-input" style="display: block; text-align: left; margin-bottom: 3px; color: #475569; font-size: 13px; font-weight: 600;" data-i18n="common.email"></label>
               <input type="email" id="first-time-email-input" placeholder="admin@example.org" autocomplete="off" style="width: 100%; padding: 7px 10px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; font-family: 'Inter', sans-serif; transition: border-color 0.2s; box-sizing: border-box;" />
             </div>
 
             <div style="min-width: 0;">
-              <label for="first-time-password-input" style="display: block; text-align: left; margin-bottom: 3px; color: #475569; font-size: 13px; font-weight: 600;">Mot de passe</label>
-              <input type="password" id="first-time-password-input" placeholder="Min. 6 caractères" autocomplete="off" style="width: 100%; padding: 7px 10px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; font-family: 'Inter', sans-serif; transition: border-color 0.2s; box-sizing: border-box;" />
+              <label for="first-time-password-input" style="display: block; text-align: left; margin-bottom: 3px; color: #475569; font-size: 13px; font-weight: 600;" data-i18n="common.password"></label>
+              <input type="password" id="first-time-password-input" data-i18n-placeholder="firstTime.passwordPlaceholder" autocomplete="off" style="width: 100%; padding: 7px 10px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; font-family: 'Inter', sans-serif; transition: border-color 0.2s; box-sizing: border-box;" />
             </div>
 
             <div style="min-width: 0;">
-              <label for="first-time-confirm-password-input" style="display: block; text-align: left; margin-bottom: 3px; color: #475569; font-size: 13px; font-weight: 600;">Confirmer</label>
-              <input type="password" id="first-time-confirm-password-input" placeholder="Retapez le mot de passe" autocomplete="off" style="width: 100%; padding: 7px 10px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; font-family: 'Inter', sans-serif; transition: border-color 0.2s; box-sizing: border-box;" />
+              <label for="first-time-confirm-password-input" style="display: block; text-align: left; margin-bottom: 3px; color: #475569; font-size: 13px; font-weight: 600;" data-i18n="common.confirm"></label>
+              <input type="password" id="first-time-confirm-password-input" data-i18n-placeholder="firstTime.confirmPlaceholder" autocomplete="off" style="width: 100%; padding: 7px 10px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; font-family: 'Inter', sans-serif; transition: border-color 0.2s; box-sizing: border-box;" />
             </div>
 
             <div style="min-width: 0;">
-              <label for="first-time-language-select" style="display: block; text-align: left; margin-bottom: 3px; color: #475569; font-size: 13px; font-weight: 600;">Langue</label>
+              <label for="first-time-language-select" style="display: block; text-align: left; margin-bottom: 3px; color: #475569; font-size: 13px; font-weight: 600;" data-i18n="common.language"></label>
               <select id="first-time-language-select" style="width: 100%; padding: 7px 10px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; font-family: 'Inter', sans-serif; transition: border-color 0.2s; box-sizing: border-box; background: white; cursor: pointer;">
                 <option value="fr">Français</option>
                 <option value="en">English</option>
@@ -75,7 +104,7 @@
 
           <div style="margin-top: 16px;">
             <button id="first-time-create-btn" class="btn btn-primary" style="width: 100%; font-size: 15px; padding: 12px;">
-              <span>Créer le compte</span>
+              <span data-i18n="firstTime.createAccount"></span>
             </button>
           </div>
         </div>
@@ -83,25 +112,25 @@
 
       <div id="ryvie-name-section" class="status-section section">
         <div style="margin: 0 auto; width: 75%; max-width: 600px; padding-bottom: 20px;">
-          <p style="font-size: 14px; color: #64748b; margin: 0 0 16px; text-align: center;">Donnez un nom à votre Ryvie</p>
+          <p style="font-size: 14px; color: #64748b; margin: 0 0 16px; text-align: center;" data-i18n="ryvieName.subtitle"></p>
 
           <div style="min-width: 0;">
-            <label for="ryvie-name-input" style="display: block; text-align: left; margin-bottom: 3px; color: #475569; font-size: 13px; font-weight: 600;">Nom du Ryvie</label>
-            <input type="text" id="ryvie-name-input" placeholder="Mon Ryvie" value="Mon Ryvie" autocomplete="off" style="width: 100%; padding: 7px 10px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; font-family: 'Inter', sans-serif; transition: border-color 0.2s; box-sizing: border-box;" />
+            <label for="ryvie-name-input" style="display: block; text-align: left; margin-bottom: 3px; color: #475569; font-size: 13px; font-weight: 600;" data-i18n="ryvieName.label"></label>
+            <input type="text" id="ryvie-name-input" data-i18n-placeholder="ryvieName.default" data-i18n-value="ryvieName.default" autocomplete="off" style="width: 100%; padding: 7px 10px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; font-family: 'Inter', sans-serif; transition: border-color 0.2s; box-sizing: border-box;" />
           </div>
 
           <p id="ryvie-name-error" style="color: #ef4444; font-size: 12px; margin: 8px 0 0; display: none;"></p>
 
           <div style="margin-top: 16px;">
             <button id="ryvie-name-btn" class="btn btn-primary" style="width: 100%; font-size: 15px; padding: 12px;">
-              <span>Continuer</span>
+              <span data-i18n="common.continue"></span>
             </button>
           </div>
         </div>
       </div>
 
       <div id="login-section" class="status-section section">
-        <button id="back-to-users-btn" class="icon-btn" type="button" title="Retour à la sélection de profil" style="position: absolute; top: 20px; right: 20px;">
+        <button id="back-to-users-btn" class="icon-btn" type="button" data-i18n-title="login.backToProfiles" style="position: absolute; top: 20px; right: 20px;">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             <path d="M13 7V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2h6a2 2 0 002-2v-1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -110,43 +139,39 @@
         <div class="login-section-content login-form-container">
           <!-- Champ Nom du profil -->
           <div class="form-group">
-            <label for="profile-name-input" class="form-label">Nom du profil</label>
-            <input type="text" id="profile-name-input" class="form-input" placeholder="Nom du profil" value="Mon Ryvie" autocomplete="off" />
+            <label for="profile-name-input" class="form-label" data-i18n="login.profileName"></label>
+            <input type="text" id="profile-name-input" class="form-input" data-i18n-placeholder="login.profileName" data-i18n-value="ryvieName.default" autocomplete="off" />
           </div>
 
           <!-- Séparateur -->
           <div class="form-separator">
             <div class="form-separator-line"></div>
-            <span class="form-separator-text">Méthode de connexion</span>
+            <span class="form-separator-text" data-i18n="login.connectionMethod"></span>
             <div class="form-separator-line"></div>
           </div>
 
           <!-- Onglets de sélection de méthode -->
           <div class="method-tabs">
-            <button id="method-local-tab" class="method-tab active">
-              Automatique
-            </button>
-            <button id="method-manual-tab" class="method-tab">
-              Manuelle
-            </button>
+            <button id="method-local-tab" class="method-tab active" data-i18n="login.methodAuto"></button>
+            <button id="method-manual-tab" class="method-tab" data-i18n="login.methodManual"></button>
           </div>
 
           <!-- Champs de connexion -->
           <div id="local-fields" style="display: block;">
             <div class="form-group">
-              <label for="uid-input" class="form-label">Nom d'utilisateur</label>
-              <input type="text" id="uid-input" class="form-input" placeholder="Identifiant" autocomplete="off" />
+              <label for="uid-input" class="form-label" data-i18n="login.username"></label>
+              <input type="text" id="uid-input" class="form-input" data-i18n-placeholder="login.usernamePlaceholder" autocomplete="off" />
             </div>
             <div class="form-group">
-              <label for="password-input" class="form-label">Mot de passe</label>
-              <input type="password" id="password-input" class="form-input" placeholder="Mot de passe" autocomplete="off" />
+              <label for="password-input" class="form-label" data-i18n="common.password"></label>
+              <input type="password" id="password-input" class="form-input" data-i18n-placeholder="common.password" autocomplete="off" />
             </div>
           </div>
 
           <div id="manual-fields" style="display: none;">
             <div class="form-group">
-              <label for="manual-setup-key-input" class="form-label">Clé de configuration</label>
-              <input type="text" id="manual-setup-key-input" class="form-input" placeholder="Collez votre clé de configuration ici" autocomplete="off" />
+              <label for="manual-setup-key-input" class="form-label" data-i18n="login.setupKey"></label>
+              <input type="text" id="manual-setup-key-input" class="form-input" data-i18n-placeholder="login.setupKeyPlaceholder" autocomplete="off" />
             </div>
           </div>
 
@@ -154,7 +179,7 @@
 
           <!-- Bouton -->
           <button id="login-btn" class="btn btn-primary login-submit-btn">
-            <span>Se connecter</span>
+            <span data-i18n="common.signIn"></span>
           </button>
         </div>
       </div>
@@ -168,11 +193,11 @@
             <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14zM10 11v6M14 11v6" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </div>
-        <h2 style="font-size: 18px; margin: 0 0 8px; text-align: center; color: #0f172a;">Supprimer l'appareil</h2>
-        <p id="confirm-delete-message" style="margin: 0 0 20px; color: #64748b; font-size: 14px; text-align: center;">Voulez-vous vraiment supprimer cet appareil ?</p>
+        <h2 style="font-size: 18px; margin: 0 0 8px; text-align: center; color: #0f172a;" data-i18n="modal.deleteTitle"></h2>
+        <p id="confirm-delete-message" style="margin: 0 0 20px; color: #64748b; font-size: 14px; text-align: center;" data-i18n="modal.deleteMessage"></p>
         <div style="display: flex; gap: 10px;">
-          <button id="confirm-delete-btn" class="btn btn-primary" style="flex: 1; font-size: 13px; background: #ef4444;"><span>Supprimer</span></button>
-          <button id="cancel-delete-btn" class="btn btn-secondary" style="flex: 1; font-size: 13px;"><span>Annuler</span></button>
+          <button id="confirm-delete-btn" class="btn btn-primary" style="flex: 1; font-size: 13px; background: #ef4444;"><span data-i18n="common.delete"></span></button>
+          <button id="cancel-delete-btn" class="btn btn-secondary" style="flex: 1; font-size: 13px;"><span data-i18n="common.cancel"></span></button>
         </div>
       </div>
     </div>
@@ -186,16 +211,16 @@
             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </div>
-        <h2 style="font-size: 18px; margin: 0 0 8px; text-align: center; color: #0f172a;">Renommer le profil</h2>
-        <p style="margin: 0 0 20px; color: #64748b; font-size: 14px; text-align: center;">Entrez le nouveau nom pour ce profil</p>
+        <h2 style="font-size: 18px; margin: 0 0 8px; text-align: center; color: #0f172a;" data-i18n="modal.renameTitle"></h2>
+        <p style="margin: 0 0 20px; color: #64748b; font-size: 14px; text-align: center;" data-i18n="modal.renameSubtitle"></p>
         <div style="margin-bottom: 20px;">
-          <label for="rename-input" style="display: block; text-align: left; margin-bottom: 6px; color: #475569; font-size: 12px; font-weight: 600;">Nom du profil</label>
-          <input type="text" id="rename-input" placeholder="Nouveau nom" autocomplete="off" style="width: 100%; padding: 10px 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; font-family: 'Inter', sans-serif; transition: border-color 0.2s; box-sizing: border-box;" />
+          <label for="rename-input" style="display: block; text-align: left; margin-bottom: 6px; color: #475569; font-size: 12px; font-weight: 600;" data-i18n="login.profileName"></label>
+          <input type="text" id="rename-input" data-i18n-placeholder="modal.renamePlaceholder" autocomplete="off" style="width: 100%; padding: 10px 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; font-family: 'Inter', sans-serif; transition: border-color 0.2s; box-sizing: border-box;" />
           <p id="rename-error" style="color: #ef4444; font-size: 12px; margin-top: 6px; display: none;"></p>
         </div>
         <div class="rename-modal-buttons" style="display: flex; gap: 10px;">
-          <button id="confirm-rename-btn" class="btn btn-primary" style="flex: 1; font-size: 13px;"><span>Renommer</span></button>
-          <button id="cancel-rename-btn" class="btn btn-secondary" style="flex: 1; font-size: 13px;"><span>Annuler</span></button>
+          <button id="confirm-rename-btn" class="btn btn-primary" style="flex: 1; font-size: 13px;"><span data-i18n="common.rename"></span></button>
+          <button id="cancel-rename-btn" class="btn btn-secondary" style="flex: 1; font-size: 13px;"><span data-i18n="common.cancel"></span></button>
         </div>
       </div>
     </div>
@@ -206,7 +231,7 @@
   <!-- ============================================================= -->
   <div id="app-view" class="view">
     <div class="container">
-      <button id="disconnect-btn" class="icon-btn" type="button" title="Se déconnecter">
+      <button id="disconnect-btn" class="icon-btn" type="button" data-i18n-title="app.signOut">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           <path d="M13 7V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2h6a2 2 0 002-2v-1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -219,7 +244,7 @@
 
       <div id="loading" class="status-section section visible active">
         <div class="spinner"></div>
-        <p style="color: #64748b; font-size: 15px; margin-top: 10px;">Connexion en cours...</p>
+        <p style="color: #64748b; font-size: 15px; margin-top: 10px;" data-i18n="app.connecting"></p>
       </div>
 
       <div id="connected" class="status-section section hidden">
@@ -227,21 +252,21 @@
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" fill="currentColor"/>
           </svg>
-          Connecté
+          <span data-i18n="app.connected"></span>
         </div>
         <div class="connection-info">
           <p id="connection-type"></p>
           <p id="vpn-status" style="display: flex; align-items: center; gap: 8px; margin: 8px 0;">
-            <strong>Accès distant:</strong>
+            <strong data-i18n="app.remoteAccess"></strong>
             <span id="vpn-status-badge" style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 12px; font-size: 13px; font-weight: 500;">
               <span id="vpn-status-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #94a3b8;"></span>
-              <span id="vpn-status-text">Vérification...</span>
+              <span id="vpn-status-text" data-i18n="common.checkingShort"></span>
             </span>
           </p>
           <p id="ryvie-id" class="ryvie-id-row">
-            <strong>Ryvie ID:</strong>
+            <strong data-i18n="app.ryvieId"></strong>
             <span id="ryvie-id-value" class="ryvie-id-masked">••••••••••••••••••••••••</span>
-            <button id="show-ryvie-id-btn" class="btn-link" type="button" title="Afficher/Masquer">
+            <button id="show-ryvie-id-btn" class="btn-link" type="button" data-i18n-title="app.showHide">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M12 5C7 5 2.73 8.11 1 12.5 2.73 16.89 7 20 12 20s9.27-3.11 11-7.5C21.27 8.11 17 5 12 5zm0 12.5c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" fill="currentColor"/>
               </svg>
@@ -250,10 +275,10 @@
         </div>
         <div class="actions-row">
           <button id="open-ryvie-btn" class="btn btn-primary">
-            <span>Ouvrir Ryvie</span>
+            <span data-i18n="app.openRyvie"></span>
           </button>
           <button id="refresh-btn" class="btn btn-secondary">
-            <span>Actualiser</span>
+            <span data-i18n="common.refresh"></span>
           </button>
         </div>
       </div>
@@ -265,11 +290,11 @@
             <path d="M13 7V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2h6a2 2 0 002-2v-1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </div>
-        <h3 style="font-size: 18px; font-weight: 600; color: #0f172a; margin: 16px 0 8px;">Déconnecté</h3>
-        <p style="color: #64748b; font-size: 14px; margin-bottom: 20px;">Choisissez comment vous souhaitez vous reconnecter</p>
+        <h3 style="font-size: 18px; font-weight: 600; color: #0f172a; margin: 16px 0 8px;" data-i18n="app.disconnected"></h3>
+        <p style="color: #64748b; font-size: 14px; margin-bottom: 20px;" data-i18n="app.disconnectedHint"></p>
         <div class="actions-row">
           <button id="retry-connection-btn" class="btn btn-secondary">
-            <span>Réessayer</span>
+            <span data-i18n="common.retry"></span>
           </button>
         </div>
       </div>
@@ -279,12 +304,12 @@
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" fill="currentColor"/>
           </svg>
-          Erreur de connexion
+          <span data-i18n="app.connectionError"></span>
         </div>
-        <p id="error-message" class="error-message">Impossible de se connecter à Ryvie</p>
+        <p id="error-message" class="error-message" data-i18n="errors.cannotConnect"></p>
         <div class="actions-row">
           <button id="retry-btn" class="btn btn-secondary">
-            <span>Réessayer</span>
+            <span data-i18n="common.retry"></span>
           </button>
         </div>
       </div>
@@ -298,16 +323,16 @@
             <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </div>
-        <h2>Nouveau Ryvie détecté</h2>
-        <p style="margin-bottom: 20px;">Un autre serveur Ryvie a été détecté sur votre réseau local.</p>
+        <h2 data-i18n="modal.newRyvieTitle"></h2>
+        <p style="margin-bottom: 20px;" data-i18n="modal.newRyvieMessage"></p>
         <div style="background: rgba(102, 126, 234, 0.05); padding: 16px; border-radius: 12px; margin: 20px 0;">
-          <p style="margin: 8px 0;"><span style="color: #64748b;">Actuel :</span> <strong id="current-id"></strong></p>
-          <p style="margin: 8px 0;"><span style="color: #64748b;">Nouveau :</span> <strong id="new-id"></strong></p>
+          <p style="margin: 8px 0;"><span style="color: #64748b;" data-i18n="modal.current"></span> <strong id="current-id"></strong></p>
+          <p style="margin: 8px 0;"><span style="color: #64748b;" data-i18n="modal.new"></span> <strong id="new-id"></strong></p>
         </div>
-        <p style="color: #64748b; font-size: 13px; margin-bottom: 24px;">Voulez-vous vous connecter à ce nouveau serveur ?</p>
+        <p style="color: #64748b; font-size: 13px; margin-bottom: 24px;" data-i18n="modal.newRyvieConfirm"></p>
         <div class="modal-buttons">
-          <button id="accept-btn" class="btn btn-primary">Accepter</button>
-          <button id="refuse-btn" class="btn btn-secondary">Refuser</button>
+          <button id="accept-btn" class="btn btn-primary" data-i18n="common.accept"></button>
+          <button id="refuse-btn" class="btn btn-secondary" data-i18n="common.refuse"></button>
         </div>
       </div>
     </div>
@@ -320,12 +345,12 @@
             <path d="M13 7V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2h6a2 2 0 002-2v-1" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </div>
-        <h2>Confirmer la déconnexion</h2>
-        <p style="margin-bottom: 20px; color: #64748b;">Êtes-vous sûr de vouloir vous déconnecter ?</p>
-        <p style="margin-bottom: 20px; color: #64748b; font-size: 13px;">Toutes vos données de connexion seront supprimées. Vous devrez vous reconnecter avec vos identifiants.</p>
+        <h2 data-i18n="modal.disconnectTitle"></h2>
+        <p style="margin-bottom: 20px; color: #64748b;" data-i18n="modal.disconnectMessage"></p>
+        <p style="margin-bottom: 20px; color: #64748b; font-size: 13px;" data-i18n="modal.disconnectWarning"></p>
         <div class="modal-buttons">
-          <button id="confirm-disconnect-btn" class="btn btn-primary" style="background: linear-gradient(135deg, #ef4444, #dc2626);"><span>Se déconnecter</span></button>
-          <button id="cancel-disconnect-btn" class="btn btn-secondary"><span>Annuler</span></button>
+          <button id="confirm-disconnect-btn" class="btn btn-primary" style="background: linear-gradient(135deg, #ef4444, #dc2626);"><span data-i18n="app.signOut"></span></button>
+          <button id="cancel-disconnect-btn" class="btn btn-secondary"><span data-i18n="common.cancel"></span></button>
         </div>
       </div>
     </div>
@@ -337,26 +362,27 @@
             <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </div>
-        <h2>Mise à jour disponible</h2>
-        <p style="margin-bottom: 20px; color: #64748b;">Une nouvelle version de Ryvie Connect est disponible.</p>
+        <h2 data-i18n="update.title"></h2>
+        <p style="margin-bottom: 20px; color: #64748b;" data-i18n="update.message"></p>
         <div style="background: rgba(102, 126, 234, 0.05); padding: 16px; border-radius: 12px; margin: 20px 0;">
-          <p style="margin: 8px 0;"><span style="color: #64748b;">Version :</span> <strong id="update-version"></strong></p>
+          <p style="margin: 8px 0;"><span style="color: #64748b;" data-i18n="update.versionLabel"></span> <strong id="update-version"></strong></p>
         </div>
         <div id="update-progress" style="display: none; margin: 20px 0;">
           <div style="background: #e2e8f0; border-radius: 8px; height: 8px; overflow: hidden;">
             <div id="update-progress-bar" style="background: linear-gradient(90deg, #667eea, #764ba2); height: 100%; width: 0%; transition: width 0.3s;"></div>
           </div>
-          <p id="update-progress-text" style="text-align: center; margin-top: 8px; color: #64748b; font-size: 13px;">Téléchargement en cours...</p>
+          <p id="update-progress-text" style="text-align: center; margin-top: 8px; color: #64748b; font-size: 13px;" data-i18n="update.downloading"></p>
         </div>
         <div class="modal-buttons">
-          <button id="download-update-btn" class="btn btn-primary"><span>Télécharger</span></button>
-          <button id="install-update-btn" class="btn btn-primary" style="display: none;"><span>Installer et redémarrer</span></button>
-          <button id="close-update-btn" class="btn btn-secondary"><span>Plus tard</span></button>
+          <button id="download-update-btn" class="btn btn-primary"><span data-i18n="update.download"></span></button>
+          <button id="install-update-btn" class="btn btn-primary" style="display: none;"><span data-i18n="update.installRestart"></span></button>
+          <button id="close-update-btn" class="btn btn-secondary"><span data-i18n="common.later"></span></button>
         </div>
       </div>
     </div>
   </div>
 
+  <script src="i18n.js"></script>
   <script src="app.js"></script>
   <script src="login.js"></script>
   <script src="renderer.js"></script>

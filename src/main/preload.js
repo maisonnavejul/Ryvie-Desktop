@@ -26,6 +26,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onUpdateError: (callback) => ipcRenderer.on('update-error', (event, error) => callback(error)),
   onUpdateStatus: (callback) => ipcRenderer.on('update-status', (event, status) => callback(status)),
   
+  // API langue (i18n)
+  getLanguage: () => ipcRenderer.invoke('get-language'),
+  setLanguage: (language) => ipcRenderer.invoke('set-language', language),
+
   // API first-time setup
   checkFirstTime: () => ipcRenderer.invoke('check-first-time'),
   createFirstUser: (userData) => ipcRenderer.invoke('create-first-user', userData),

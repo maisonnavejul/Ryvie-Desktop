@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -156,13 +156,13 @@
     <div class="card">
       <img class="logo" src="../../ryvielogo0.png" alt="Ryvie" />
       <div class="title">Ryvie Connect</div>
-      <div class="dots" id="loading-dots" aria-label="Chargement">
+      <div class="dots" id="loading-dots" aria-label="Loading">
         <div class="dot"></div>
         <div class="dot"></div>
         <div class="dot"></div>
       </div>
       <div class="update-info" id="update-info">
-        <div class="update-message" id="update-message">Vérification des mises à jour...</div>
+        <div class="update-message" id="update-message" data-i18n="update.checking"></div>
         <div class="progress-container">
           <div class="progress-bar" id="progress-bar"></div>
         </div>
@@ -170,12 +170,25 @@
       </div>
 
       <div class="actions" id="update-actions">
-        <button class="btn btn-primary" id="install-btn" type="button">Installer</button>
-        <button class="btn" id="later-btn" type="button">Plus tard</button>
+        <button class="btn btn-primary" id="install-btn" type="button" data-i18n="common.install"></button>
+        <button class="btn" id="later-btn" type="button" data-i18n="common.later"></button>
       </div>
     </div>
   </div>
+  <script src="i18n.js"></script>
   <script>
+    // Le splash s'affiche avant toute interaction : on applique la langue déjà
+    // choisie (ou celle du système au tout premier lancement) dès que possible.
+    window.I18n.load().catch((e) => console.error('[Ryvie][Splash] i18n:', e));
+
+    // Traduit un statut envoyé par le main, qui transmet une clé i18n + params
+    // plutôt que du texte figé.
+    function statusText(status, fallbackKey) {
+      if (status && status.key) return t(status.key, status.params);
+      if (status && status.message) return status.message; // compat ancien format
+      return t(fallbackKey);
+    }
+
     if (window.electronAPI && window.electronAPI.onUpdateStatus) {
       window.electronAPI.onUpdateStatus((status) => {
         const dots = document.getElementById('loading-dots');
@@ -193,14 +206,14 @@
           dots.style.display = 'none';
           updateInfo.style.display = 'block';
           actions.style.display = 'flex';
-          message.textContent = status.message || 'Mise à jour disponible';
+          message.textContent = statusText(status, 'update.title');
           progressBar.style.width = '0%';
           progressPercent.textContent = '';
         } else if (status.status === 'downloading') {
           dots.style.display = 'none';
           updateInfo.style.display = 'block';
           actions.style.display = 'none';
-          message.textContent = status.message || 'Téléchargement en cours...';
+          message.textContent = statusText(status, 'update.downloading');
           if (status.percent !== undefined) {
             progressBar.style.width = status.percent + '%';
             progressPercent.textContent = Math.round(status.percent) + '%';
@@ -209,7 +222,7 @@
           dots.style.display = 'none';
           updateInfo.style.display = 'block';
           actions.style.display = 'none';
-          message.textContent = status.message || 'Installation en cours...';
+          message.textContent = statusText(status, 'update.installing');
           progressBar.style.width = '100%';
           progressPercent.textContent = '';
         } else if (status.status === 'error') {

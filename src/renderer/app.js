@@ -6,13 +6,20 @@
 window.Ryvie = (function () {
   let loginApi = null; // { init }
   let appApi = null;   // { init }
-  let currentView = null; // 'login' | 'app'
+  let currentView = null; // 'language' | 'login' | 'app'
   let started = false;
+  let pendingView = null; // vue à afficher après le choix de langue au 1er lancement
 
   const TRANSITION_MS = 220;
 
+  const VIEW_IDS = {
+    language: 'language-view',
+    login: 'login-view',
+    app: 'app-view'
+  };
+
   function viewEl(name) {
-    return document.getElementById(name === 'login' ? 'login-view' : 'app-view');
+    return document.getElementById(VIEW_IDS[name]);
   }
 
   // Rejoue l'animation d'entrée (fadeInUp) du container de la vue affichée
@@ -30,6 +37,7 @@ window.Ryvie = (function () {
     el.classList.add('view-active');
     replayEntrance(el.querySelector('.container'));
     currentView = name;
+    window.I18n.apply(el);
     if (name === 'login' && loginApi) loginApi.init();
     if (name === 'app' && appApi) appApi.init();
   }
@@ -54,10 +62,47 @@ window.Ryvie = (function () {
     }, fromEl ? TRANSITION_MS : 0);
   }
 
+  // Écran de choix de langue : affiché uniquement tant qu'aucune langue n'a été
+  // choisie (premier lancement). Le choix est persisté, donc on n'y repasse plus.
+  function setupLanguageChoice() {
+    document.querySelectorAll('.language-choice-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        document.querySelectorAll('.language-choice-btn').forEach((b) => { b.disabled = true; });
+        await window.I18n.save(btn.getAttribute('data-lang'));
+        switchTo(pendingView || 'login');
+      });
+    });
+  }
+
+  // Sélecteur de langue de l'écran de connexion
+  function setupLanguageSwitcher() {
+    const select = document.getElementById('language-select');
+    if (!select) return;
+    select.value = window.I18n.getLang();
+    select.addEventListener('change', async () => {
+      await window.I18n.save(select.value);
+    });
+    document.addEventListener('ryvie:language-changed', () => {
+      select.value = window.I18n.getLang();
+    });
+  }
+
   async function start() {
     // On attend que les deux vues soient enregistrées avant de décider
     if (started || !loginApi || !appApi) return;
     started = true;
+
+    // La langue doit être appliquée avant d'afficher quoi que ce soit,
+    // sinon l'utilisateur voit un flash de texte non traduit.
+    let chosenLanguage = null;
+    try {
+      chosenLanguage = await window.I18n.load();
+    } catch (e) {
+      console.error('[Ryvie][Router] Erreur chargement de la langue:', e);
+    }
+
+    setupLanguageChoice();
+    setupLanguageSwitcher();
 
     let hasConfig = false;
     try {
@@ -67,8 +112,16 @@ window.Ryvie = (function () {
       console.error('[Ryvie][Router] Erreur lecture config initiale:', e);
     }
 
-    console.log('[Ryvie][Router] Vue initiale:', hasConfig ? 'app' : 'login');
-    switchTo(hasConfig ? 'app' : 'login');
+    pendingView = hasConfig ? 'app' : 'login';
+
+    if (!chosenLanguage) {
+      console.log('[Ryvie][Router] Premier lancement: choix de la langue');
+      switchTo('language');
+      return;
+    }
+
+    console.log('[Ryvie][Router] Vue initiale:', pendingView);
+    switchTo(pendingView);
   }
 
   return {

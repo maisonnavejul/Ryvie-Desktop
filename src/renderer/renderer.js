@@ -91,7 +91,8 @@ function showConnected() {
   setButtonLoading(true);
 }
 
-function showError(message = 'Impossible de se connecter à Ryvie') {
+function showError(message) {
+  if (message === undefined) message = t('errors.cannotConnect');
   setVisibility(loadingSection, false);
   setVisibility(connectedSection, false);
   setVisibility(disconnectedSection, false);
@@ -316,7 +317,7 @@ async function switchToRemoteMode(config) {
       }
     } catch (error) {
       console.error('[Ryvie][Renderer] ❌ URL manuelle inaccessible:', error.message);
-      showError('Impossible de joindre ce Ryvie. Vérifiez qu\'il est bien allumé et connecté à Internet.');
+      showError(t('errors.unreachable'));
       return;
     }
   } else if (config && config.mode === 'local' && config.ryvieId) {
@@ -343,7 +344,7 @@ async function switchToRemoteMode(config) {
         if (!isInitialLoad) setButtonLoading(false);
       } catch (error) {
         console.error('[Ryvie][Renderer] ❌ Domaine app inaccessible:', error.message);
-        showError('Impossible de joindre ce Ryvie. Vérifiez qu\'il est bien allumé et connecté à Internet.');
+        showError(t('errors.unreachable'));
       }
     } else if (config.tunnelHost) {
       console.log('[Ryvie][Renderer] Mode LOCAL distant -> tentative via tunnelHost:', config.tunnelHost);
@@ -366,11 +367,11 @@ async function switchToRemoteMode(config) {
         if (!isInitialLoad) setButtonLoading(false);
       } catch (error) {
         console.error('[Ryvie][Renderer] ❌ Tunnel inaccessible:', error.message);
-        showError('Impossible de joindre ce Ryvie. Vérifiez qu\'il est bien allumé et connecté à Internet.');
+        showError(t('errors.unreachable'));
       }
     } else {
       console.warn('[Ryvie][Renderer] ⚠️ Ryvie local mais pas sur le bon réseau, aucun accès distant configuré');
-      showError('Le Ryvie détecté en local n\'est pas celui de ce profil. Vérifiez que le bon Ryvie est allumé ou connectez-vous au même réseau.');
+      showError(t('errors.wrongLocalRyvie'));
     }
     return;
   } else if (config && config.domains) {
@@ -386,7 +387,7 @@ async function switchToRemoteMode(config) {
       console.log('[Ryvie][Renderer] Mode REMOTE avec tunnelHost:', publicUrl);
     } else {
       console.warn('[Ryvie][Renderer] ⚠️  Pas de domains.app ni tunnelHost');
-      showError('Configuration incomplète. Veuillez vous reconnecter en local.');
+      showError(t('errors.incompleteConfig'));
       return;
     }
     
@@ -424,13 +425,13 @@ async function switchToRemoteMode(config) {
     } catch (error) {
       // URL publique inaccessible ou erreur réseau
       console.error('[Ryvie][Renderer] ❌ URL remote inaccessible:', error.message);
-      showError('La connexion à votre Ryvie est impossible, merci de vérifier qu\'il est bien allumé');
+      showError(t('errors.connectionImpossible'));
       return;
     }
   } else {
     // Aucune config sauvegardée et pas de connexion locale
     console.warn('[Ryvie][Renderer] ⚠️  Aucune config + pas de réseau local');
-    showError('Veuillez vous connecter une première fois à votre Ryvie depuis chez vous (réseau local).');
+    showError(t('errors.firstConnectLocal'));
     return;
   }
 }
@@ -451,26 +452,26 @@ async function updateVpnStatus() {
     if (!status.installed) {
       // NetBird non installé
       vpnStatusDot.style.background = '#94a3b8';
-      vpnStatusText.textContent = 'Inactif';
+      vpnStatusText.textContent = t('app.inactive');
       vpnStatusBadge.style.background = 'rgba(148, 163, 184, 0.1)';
       vpnStatusBadge.style.color = '#64748b';
     } else if (status.connected) {
       // Accès distant actif
       vpnStatusDot.style.background = '#10b981';
-      vpnStatusText.textContent = 'Actif';
+      vpnStatusText.textContent = t('app.active');
       vpnStatusBadge.style.background = 'rgba(16, 185, 129, 0.1)';
       vpnStatusBadge.style.color = '#059669';
     } else {
       // Accès distant inactif
       vpnStatusDot.style.background = '#f59e0b';
-      vpnStatusText.textContent = 'Inactif';
+      vpnStatusText.textContent = t('app.inactive');
       vpnStatusBadge.style.background = 'rgba(245, 158, 11, 0.1)';
       vpnStatusBadge.style.color = '#d97706';
     }
   } catch (error) {
     console.error('[Ryvie][Renderer] Erreur vérification statut accès distant:', error);
     vpnStatusDot.style.background = '#94a3b8';
-    vpnStatusText.textContent = 'Erreur';
+    vpnStatusText.textContent = t('common.error');
     vpnStatusBadge.style.background = 'rgba(148, 163, 184, 0.1)';
     vpnStatusBadge.style.color = '#64748b';
   }
@@ -481,7 +482,7 @@ function setVpnStatusConnecting() {
   if (!vpnStatusBadge || !vpnStatusDot || !vpnStatusText) return;
   
   vpnStatusDot.style.background = '#3b82f6';
-  vpnStatusText.textContent = 'Connexion en cours...';
+  vpnStatusText.textContent = t('app.connecting');
   vpnStatusBadge.style.background = 'rgba(59, 130, 246, 0.1)';
   vpnStatusBadge.style.color = '#2563eb';
 }
@@ -513,13 +514,13 @@ function updateUI(config) {
     appTitleEl.textContent = config.name || 'Mon Ryvie';
   }
   if (config.mode === 'local') {
-    connectionType.innerHTML = '<strong>Mode:</strong> Connexion Automatique <span aria-hidden="true">🏠</span>';
+    connectionType.innerHTML = `<strong>${t('app.modeLabel')}</strong> ${t('app.modeAuto')} <span aria-hidden="true">🏠</span>`;
   } else if (config.mode === 'manual') {
-    connectionType.innerHTML = '<strong>Mode:</strong> Connexion Manuelle <span aria-hidden="true">🔧</span>';
+    connectionType.innerHTML = `<strong>${t('app.modeLabel')}</strong> ${t('app.modeManual')} <span aria-hidden="true">🔧</span>`;
   } else if (config.mode === 'remote') {
-    connectionType.innerHTML = '<strong>Mode:</strong> Connexion Distante <span aria-hidden="true">🌐</span>';
+    connectionType.innerHTML = `<strong>${t('app.modeLabel')}</strong> ${t('app.modeRemote')} <span aria-hidden="true">🌐</span>`;
   } else {
-    connectionType.innerHTML = '<strong>Mode:</strong> Connexion Publique <span aria-hidden="true">🌐</span>';
+    connectionType.innerHTML = `<strong>${t('app.modeLabel')}</strong> ${t('app.modePublic')} <span aria-hidden="true">🌐</span>`;
   }
   if (ryvieIdValueEl) {
     if (config.ryvieId) {
@@ -736,14 +737,14 @@ if (window.electronAPI && window.electronAPI.onUpdateAvailable) {
     if (updateProgressEl && updateProgressBar && updateProgressText) {
       updateProgressEl.style.display = 'block';
       updateProgressBar.style.width = progress.percent + '%';
-      updateProgressText.textContent = `Téléchargement en cours... ${Math.round(progress.percent)}%`;
+      updateProgressText.textContent = t('update.downloadingPct', { percent: Math.round(progress.percent) });
     }
   });
 
   window.electronAPI.onUpdateDownloaded((info) => {
     console.log('[Ryvie][Renderer] Mise à jour téléchargée:', info.version);
     if (updateProgressText && downloadUpdateBtn && installUpdateBtn) {
-      updateProgressText.textContent = 'Téléchargement terminé !';
+      updateProgressText.textContent = t('update.downloadComplete');
       downloadUpdateBtn.style.display = 'none';
       installUpdateBtn.style.display = 'inline-flex';
     }
@@ -752,7 +753,7 @@ if (window.electronAPI && window.electronAPI.onUpdateAvailable) {
   window.electronAPI.onUpdateError((error) => {
     console.error('[Ryvie][Renderer] Erreur mise à jour:', error);
     if (updateProgressText) {
-      updateProgressText.textContent = 'Erreur lors du téléchargement';
+      updateProgressText.textContent = t('update.downloadError');
       updateProgressText.style.color = '#ef4444';
     }
   });
@@ -770,7 +771,7 @@ if (downloadUpdateBtn) {
       if (!result.success) {
         console.error('[Ryvie][Renderer] Erreur téléchargement:', result.error);
         if (updateProgressText) {
-          updateProgressText.textContent = 'Erreur lors du téléchargement';
+          updateProgressText.textContent = t('update.downloadError');
           updateProgressText.style.color = '#ef4444';
         }
       }
@@ -834,14 +835,14 @@ if (window.electronAPI && window.electronAPI.onNetbirdStatus) {
       // Connecté avec succès
       isNetbirdSetupInProgress = false;
       vpnStatusDot.style.background = '#10b981';
-      vpnStatusText.textContent = 'Actif';
+      vpnStatusText.textContent = t('app.active');
       vpnStatusBadge.style.background = 'rgba(16, 185, 129, 0.1)';
       vpnStatusBadge.style.color = '#059669';
     } else if (statusUpdate.status === 'timeout' || statusUpdate.status === 'error') {
       // Timeout ou erreur
       isNetbirdSetupInProgress = false;
       vpnStatusDot.style.background = '#ef4444';
-      vpnStatusText.textContent = 'Erreur de connexion';
+      vpnStatusText.textContent = t('app.connectionError');
       vpnStatusBadge.style.background = 'rgba(239, 68, 68, 0.1)';
       vpnStatusBadge.style.color = '#dc2626';
     }
