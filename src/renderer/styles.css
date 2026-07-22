@@ -586,9 +586,47 @@ h1 {
   min-width: 280px;
 }
 
+.users-carousel {
+  position: relative;
+}
+
 .users-list {
-  max-height: min(360px, 45vh);
-  overflow-y: auto;
+  display: flex;
+  flex-direction: row;
+  gap: 14px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  /* padding latéral = permet de centrer n'importe quelle carte (168px de large) */
+  padding: 16px calc(50% - 84px) 26px;
+  /* fondu gauche/droite prononcé (effet carrousel) */
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 44px, #000 calc(100% - 44px), transparent 100%);
+          mask-image: linear-gradient(to right, transparent 0, #000 44px, #000 calc(100% - 44px), transparent 100%);
+  scrollbar-width: none; /* Firefox */
+}
+
+/* Scrollbar masquée (navigation par flèches / snap) */
+.users-list::-webkit-scrollbar {
+  display: none;
+}
+.users-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+.users-list::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.35);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.users-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.55);
+  background-clip: content-box;
+}
+
+/* Pendant une connexion : les autres cartes sont désactivées (une seule connexion à la fois) */
+.users-list.is-connecting .user-select-btn:not(.user-connecting) {
+  opacity: 0.45;
+  pointer-events: none;
+  filter: grayscale(0.25);
 }
 
 .add-user-btn {
@@ -741,19 +779,20 @@ h1 {
    SÉLECTEUR DE LANGUE (écran de connexion)
    ============================================================ */
 .language-switcher {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  z-index: 10;
+  position: fixed;
+  top: 10px;
+  right: 14px;
+  z-index: 1000;
 }
 
 .language-switcher select {
   appearance: none;
   -webkit-appearance: none;
   padding: 5px 26px 5px 10px;
-  border: 2px solid #e2e8f0;
+  border: 1px solid rgba(255, 255, 255, 0.6);
   border-radius: 8px;
-  background-color: #fff;
+  background-color: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
   /* Chevron dessiné en SVG inline pour éviter toute ressource externe */
   background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
@@ -799,4 +838,283 @@ h1 {
 .flag {
   font-size: 20px;
   line-height: 1;
+}
+
+/* ============================================================
+   LISTE « CHOISIR UN RYVIE » (cartes de profil modernisées)
+   ============================================================ */
+.user-select-btn {
+  position: relative;
+  flex: 0 0 168px;
+  width: 168px;
+  scroll-snap-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 14px 18px;
+  background: #ffffff;
+  border: 1px solid #e8edf3;
+  border-radius: 18px;
+  cursor: pointer;
+  text-align: center;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+.user-select-btn:hover {
+  transform: translateY(-4px);
+  border-color: #38bdf8;
+  box-shadow: 0 12px 24px rgba(56, 189, 248, 0.22);
+}
+.user-select-btn:disabled {
+  cursor: default;
+  transform: none;
+}
+
+.user-left-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+}
+
+.user-avatar {
+  width: 58px;
+  height: 58px;
+  border-radius: 18px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: 0.5px;
+  box-shadow: 0 6px 16px rgba(2, 132, 199, 0.28);
+  background-size: cover;
+  background-position: center;
+  overflow: hidden;
+}
+
+/* Aperçu de l'avatar dans la modale "Modifier ce profil" */
+.rename-avatar-preview {
+  width: 76px;
+  height: 76px;
+  border-radius: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 28px;
+  letter-spacing: 0.5px;
+  background-size: cover;
+  background-position: center;
+  overflow: hidden;
+  box-shadow: 0 6px 16px rgba(2, 132, 199, 0.28);
+}
+
+.user-info {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.user-name {
+  font-weight: 700;
+  color: #0f172a;
+  font-size: 15px;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-badge {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+.user-badge .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.user-badge--auto {
+  background: #dbeafe;
+  color: #2563eb;
+}
+.user-badge--manual {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.user-actions-section {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+.user-select-btn:hover .user-actions-section {
+  opacity: 1;
+}
+.user-action-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: #f1f5f9;
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+.user-action-btn:hover {
+  transform: scale(1.08);
+}
+.user-action-btn.rename:hover {
+  background: #3b82f6;
+  color: #fff;
+}
+.user-action-btn.delete {
+  font-size: 20px;
+  line-height: 1;
+}
+.user-action-btn.delete:hover {
+  background: #ef4444;
+  color: #fff;
+}
+
+/* Épingle favori (coin haut-gauche de la carte) */
+.user-fav-btn {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: #cbd5e1;
+  cursor: pointer;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.18s ease, transform 0.18s ease, background 0.18s ease;
+}
+.user-fav-btn:hover {
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.12);
+  transform: scale(1.12);
+}
+.user-fav-btn.is-active {
+  color: #f59e0b;
+}
+/* Épingle « plantée » quand active : remplie */
+.user-fav-btn.is-active svg {
+  fill: currentColor;
+}
+
+/* Carte favorite mise en avant (bordure + fond doré subtil) */
+.user-select-btn.is-favorite {
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.35) inset, 0 1px 2px rgba(245, 158, 11, 0.2);
+  background: linear-gradient(180deg, #fffdf6, #ffffff);
+}
+.user-select-btn.is-favorite:hover {
+  border-color: #f59e0b;
+  box-shadow: 0 12px 24px rgba(245, 158, 11, 0.22);
+}
+
+/* État "connexion en cours" d'une carte */
+.user-select-btn.user-connecting {
+  justify-content: center;
+  gap: 10px;
+  border-color: #38bdf8;
+  background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+}
+
+/* Flèches de navigation du carrousel */
+.carousel-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 5;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid #e2e8f0;
+  background: rgba(255, 255, 255, 0.95);
+  color: #475569;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.12);
+  transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+.carousel-arrow:hover {
+  background: #fff;
+  color: #0ea5e9;
+  transform: translateY(-50%) scale(1.08);
+}
+.carousel-arrow.prev {
+  left: -6px;
+}
+.carousel-arrow.next {
+  right: -6px;
+}
+
+/* Curseur de défilement du carrousel, façon barre de défilement (scrollbar) */
+.carousel-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  width: min(72%, 340px);
+  margin: 10px auto 0;
+  height: 8px;
+  border-radius: 999px;
+  background: #eef2f7;
+  cursor: pointer;
+}
+.carousel-slider:focus {
+  outline: none;
+}
+/* Thumb = poignée de scrollbar (pilule fine à ras du rail) */
+.carousel-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 56px;
+  height: 8px;
+  border-radius: 999px;
+  border: none;
+  background: #cbd5e1;
+  box-shadow: none;
+  cursor: grab;
+  transition: background 0.15s ease;
+}
+.carousel-slider::-webkit-slider-thumb:hover {
+  background: #94a3b8;
+}
+.carousel-slider::-webkit-slider-thumb:active {
+  background: #64748b;
+  cursor: grabbing;
 }

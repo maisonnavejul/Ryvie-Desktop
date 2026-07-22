@@ -13,6 +13,8 @@ let confirmDeleteModal, confirmDeleteMessage, confirmDeleteBtn, cancelDeleteBtn;
 let profileNameInput, methodLocalTab, methodManualTab, localFields, manualFields, manualSetupKeyInput;
 let headerTitle, backToUsersBtn;
 let renameModal, renameInput, renameError, confirmRenameBtn, cancelRenameBtn;
+let renameAvatarPreview, renameImportBtn, renameRemoveBtn;
+let renamePendingAvatar; // undefined = inchangé, null = retirer, string = nouvelle image
 let userToRename = null;
 let userToRenameKey = null;
 let allUsers = [];
@@ -81,6 +83,9 @@ function bootLogin() {
   renameError = document.getElementById('rename-error');
   confirmRenameBtn = document.getElementById('confirm-rename-btn');
   cancelRenameBtn = document.getElementById('cancel-rename-btn');
+  renameAvatarPreview = document.getElementById('rename-avatar-preview');
+  renameImportBtn = document.getElementById('rename-import-btn');
+  renameRemoveBtn = document.getElementById('rename-remove-btn');
   
   // Forcer l'activation des champs
   if (uidInput) {
@@ -217,7 +222,36 @@ function attachEventListeners() {
       showSection('login-section');
     });
   }
-  
+
+  // Carrousel infini : flèches, boucle au scroll, et curseur (slider) de défilement
+  const carouselPrev = document.getElementById('carousel-prev');
+  const carouselNext = document.getElementById('carousel-next');
+  carouselSlider = document.getElementById('carousel-slider');
+  if (carouselPrev) carouselPrev.addEventListener('click', () => {
+    if (carouselStep) usersList.scrollBy({ left: -carouselStep, behavior: 'smooth' });
+  });
+  if (carouselNext) carouselNext.addEventListener('click', () => {
+    if (carouselStep) usersList.scrollBy({ left: carouselStep, behavior: 'smooth' });
+  });
+  if (usersList) {
+    usersList.addEventListener('scroll', () => {
+      carouselWrap();
+      syncSliderFromScroll();
+    });
+  }
+  if (carouselSlider) {
+    carouselSlider.addEventListener('input', () => {
+      if (!carouselCopyWidth) return;
+      carouselSliderActive = true;
+      const lo = carouselCopyWidth * 0.5;
+      usersList.scrollLeft = lo + (Number(carouselSlider.value) / 1000) * carouselCopyWidth;
+    });
+    const stopSlider = () => { carouselSliderActive = false; };
+    carouselSlider.addEventListener('change', stopSlider);
+    carouselSlider.addEventListener('pointerup', stopSlider);
+    carouselSlider.addEventListener('mouseup', stopSlider);
+  }
+
   // Event listeners pour le modal de confirmation suppression
   if (confirmDeleteBtn) {
     confirmDeleteBtn.addEventListener('click', async () => {
@@ -250,6 +284,23 @@ function attachEventListeners() {
       if (e.target === renameModal) {
         hideRenameModal();
       }
+    });
+  }
+
+  // Modale "Modifier ce profil" : import / retrait de l'image d'avatar
+  if (renameImportBtn) {
+    renameImportBtn.addEventListener('click', async () => {
+      const dataUrl = await pickImageDataUrl();
+      if (dataUrl) {
+        renamePendingAvatar = dataUrl;
+        updateRenamePreview(dataUrl);
+      }
+    });
+  }
+  if (renameRemoveBtn) {
+    renameRemoveBtn.addEventListener('click', () => {
+      renamePendingAvatar = null;
+      updateRenamePreview(null);
     });
   }
 }
@@ -706,14 +757,133 @@ function loadAndShowUsers(users) {
   displayAllUsers();
 }
 
+// Avatar par défaut : dégradé uniforme aux couleurs de Ryvie (identique pour tous).
+// Un profil peut importer sa propre image pour personnaliser.
+const AVATAR_DEFAULT_GRADIENT = 'linear-gradient(135deg, #38bdf8, #2563eb)';
+
+// Redimensionne une image importée en carré (crop centré) -> data URL compact
+function resizeImageToDataUrl(file, size) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        const min = Math.min(img.width, img.height);
+        const sx = (img.width - min) / 2;
+        const sy = (img.height - min) / 2;
+        ctx.drawImage(img, sx, sy, min, min, 0, 0, size, size);
+        resolve(canvas.toDataURL('image/jpeg', 0.85));
+      };
+      img.onerror = reject;
+      img.src = reader.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// Ouvre un sélecteur d'image et renvoie un data URL redimensionné (ou null si annulé)
+function pickImageDataUrl() {
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.style.display = 'none';
+    document.body.appendChild(input);
+    input.addEventListener('change', async () => {
+      const file = input.files && input.files[0];
+      document.body.removeChild(input);
+      if (!file) { resolve(null); return; }
+      try {
+        resolve(await resizeImageToDataUrl(file, 128));
+      } catch (err) {
+        console.error('[Ryvie][Login] Erreur lecture image:', err);
+        resolve(null);
+      }
+    });
+    input.click();
+  });
+}
+
+// Initiales (1 à 2 lettres) à partir du nom du profil
+function getInitials(name) {
+  const parts = (name || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return 'R';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+}
+
+// Icône épingle (pin) pour le favori
+const PIN_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></svg>';
+
+// ===== Carrousel infini de sélection de profil =====
+// On rend 3 copies identiques de la liste. On maintient la position dans la copie centrale ;
+// comme les copies sont identiques, un saut de ±copyWidth est invisible → boucle sans à-coup.
+const CAROUSEL_GAP = 14;
+const CAROUSEL_COPIES = 3;
+let carouselStep = 0;        // largeur d'une carte + gap
+let carouselCopyWidth = 0;   // largeur d'une copie complète (step × nb de profils)
+let carouselSlider = null;
+let carouselSliderActive = false;
+
+// Mesure les dimensions du carrousel (après rendu)
+function measureCarousel(perCopy) {
+  const cards = usersList.querySelectorAll('.user-select-btn');
+  if (!cards.length) { carouselStep = 0; carouselCopyWidth = 0; return; }
+  carouselStep = cards[0].getBoundingClientRect().width + CAROUSEL_GAP;
+  carouselCopyWidth = carouselStep * perCopy;
+}
+
+// Garde la position dans la copie centrale (défilement infini)
+function carouselWrap() {
+  if (!carouselCopyWidth) return;
+  if (usersList.scrollLeft < carouselCopyWidth * 0.5) {
+    usersList.scrollLeft += carouselCopyWidth;
+  } else if (usersList.scrollLeft > carouselCopyWidth * 1.5) {
+    usersList.scrollLeft -= carouselCopyWidth;
+  }
+}
+
+// Met à jour le curseur selon la position de défilement
+function syncSliderFromScroll() {
+  if (!carouselSlider || !carouselCopyWidth || carouselSliderActive) return;
+  const lo = carouselCopyWidth * 0.5;
+  let v = ((usersList.scrollLeft - lo) / carouselCopyWidth) * 1000;
+  v = Math.max(0, Math.min(1000, v));
+  carouselSlider.value = String(Math.round(v));
+}
+
+// Centre le favori (1re carte de la copie centrale) au milieu du carrousel
+function centerFavorite(perCopy) {
+  measureCarousel(perCopy);
+  if (!carouselCopyWidth) return;
+  const cards = usersList.querySelectorAll('.user-select-btn');
+  const card = cards[perCopy]; // copie centrale, 1er élément = favori
+  if (!card) return;
+  const listRect = usersList.getBoundingClientRect();
+  const cardRect = card.getBoundingClientRect();
+  usersList.scrollLeft += (cardRect.left - listRect.left) - (usersList.clientWidth - cardRect.width) / 2;
+  syncSliderFromScroll();
+}
+
 function displayAllUsers() {
   if (!usersList) return;
-  
+
+  // Réinitialiser un éventuel verrou de connexion resté actif (ex: après une connexion
+  // réussie puis une déconnexion → on réaffiche la liste, tout doit être cliquable).
+  usersList.classList.remove('is-connecting');
   usersList.innerHTML = '';
   
   // allUsers peut être un tableau ou un objet
   const usersArray = Array.isArray(allUsers) ? allUsers : Object.values(allUsers);
-  
+
+  // Favori(s) en tête (tri stable : l'ordre relatif des autres est conservé)
+  usersArray.sort((a, b) => (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0));
+
   if (usersArray.length === 0) {
     const emptyMsg = document.createElement('div');
     emptyMsg.style.cssText = 'text-align: center; padding: 20px; color: #64748b; font-size: 13px;';
@@ -722,78 +892,65 @@ function displayAllUsers() {
     return;
   }
   
-  usersArray.forEach(user => {
+  // 3 copies identiques -> défilement infini (cartes des deux côtés du centre)
+  for (let copy = 0; copy < CAROUSEL_COPIES; copy++) usersArray.forEach(user => {
     const userKey = user.userKey || user.email || user.uid;
+    const displayName = user.name || user.uid || 'Mon Ryvie';
+    const isManual = user.mode === 'manual';
+
     const userBtn = document.createElement('button');
-    userBtn.className = 'btn user-select-btn';
-    userBtn.style.cssText = `
-      width: 100%;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 18px 22px;
-      background: white;
-      border: 2px solid #e2e8f0;
-      border-radius: 14px;
-      font-size: 16px;
-      transition: all 0.2s;
-      cursor: pointer;
-      flex-wrap: wrap;
-    `;
-    
+    userBtn.className = 'user-select-btn' + (user.favorite ? ' is-favorite' : '');
+
+    // Avatar : image importée si présente, sinon dégradé uniforme + initiales
+    const avatar = document.createElement('div');
+    avatar.className = 'user-avatar';
+    if (user.avatar) {
+      avatar.classList.add('has-image');
+      avatar.style.backgroundImage = `url("${user.avatar}")`;
+    } else {
+      avatar.style.background = AVATAR_DEFAULT_GRADIENT;
+      avatar.textContent = getInitials(displayName);
+    }
+
+    const userName = document.createElement('div');
+    userName.className = 'user-name';
+    userName.textContent = displayName;
+
+    // Badge du type de connexion (sous le nom)
+    const connectionTypeBadge = document.createElement('span');
+    connectionTypeBadge.className = 'user-badge ' + (isManual ? 'user-badge--manual' : 'user-badge--auto');
+    connectionTypeBadge.innerHTML = '<span class="dot"></span>' + (isManual ? 'Manuelle' : 'Automatique');
+
     const userInfo = document.createElement('div');
     userInfo.className = 'user-info';
-    userInfo.style.cssText = `
-      flex: 1;
-      text-align: left;
-      min-width: 0;
-      overflow: hidden;
-    `;
-    
-    const userName = document.createElement('div');
-    userName.style.cssText = `
-      font-weight: 600;
-      color: #0f172a;
-      font-size: 17px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    `;
-    userName.textContent = user.name || user.uid || 'Mon Ryvie';
-    
     userInfo.appendChild(userName);
-    
-    // Conteneur pour userInfo + badge (partie gauche)
+    userInfo.appendChild(connectionTypeBadge);
+
     const userLeftSection = document.createElement('div');
     userLeftSection.className = 'user-left-section';
-    userLeftSection.style.cssText = `
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex: 1;
-      min-width: 0;
-    `;
-    
+    userLeftSection.appendChild(avatar);
     userLeftSection.appendChild(userInfo);
-    
-    // Badge pour le type de connexion (local ou manuel)
-    const connectionTypeBadge = document.createElement('span');
-    const isManual = user.mode === 'manual';
-    connectionTypeBadge.style.cssText = `
-      display: inline-block;
-      padding: 5px 12px;
-      border-radius: 14px;
-      font-size: 13px;
-      font-weight: 600;
-      background: ${isManual ? '#fef3c7' : '#dbeafe'};
-      color: ${isManual ? '#d97706' : '#2563eb'};
-      flex-shrink: 0;
-    `;
-    connectionTypeBadge.textContent = isManual ? 'Manuelle' : 'Automatique';
-    userLeftSection.appendChild(connectionTypeBadge);
-    
+
     userBtn.appendChild(userLeftSection);
-    
+
+    // Étoile favori (coin haut-gauche). Un seul favori à la fois ; re-cliquer le retire.
+    const favBtn = document.createElement('button');
+    favBtn.className = 'user-fav-btn' + (user.favorite ? ' is-active' : '');
+    favBtn.innerHTML = PIN_SVG;
+    favBtn.title = user.favorite ? "Retirer l'épingle" : 'Épingler ce Ryvie';
+    favBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const res = await window.electronAPI.setFavoriteUser(userKey);
+      if (res && res.success) {
+        const r = await window.electronAPI.getAllUsers();
+        if (r && r.success) {
+          allUsers = r.users;
+          displayAllUsers();
+        }
+      }
+    });
+    userBtn.appendChild(favBtn);
+
     // Bouton de renommage (crayon)
     const renameBtn = document.createElement('button');
     renameBtn.innerHTML = `
@@ -802,83 +959,24 @@ function displayAllUsers() {
         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     `;
-    renameBtn.style.cssText = `
-      width: 34px;
-      height: 34px;
-      border-radius: 50%;
-      border: none;
-      background: #f1f5f9;
-      color: #64748b;
-      font-size: 16px;
-      line-height: 1;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.2s;
-      margin-left: 4px;
-      flex-shrink: 0;
-    `;
+    renameBtn.className = 'user-action-btn rename';
     renameBtn.title = t('login.renameThisProfile');
-    
-    renameBtn.addEventListener('mouseenter', () => {
-      renameBtn.style.background = '#3b82f6';
-      renameBtn.style.color = 'white';
-    });
-    
-    renameBtn.addEventListener('mouseleave', () => {
-      renameBtn.style.background = '#f1f5f9';
-      renameBtn.style.color = '#64748b';
-    });
-    
+
     renameBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       showRenameModal(userKey, user.name || user.uid);
     });
     
-    // Conteneur pour les boutons d'action (rename + delete)
+    // Conteneur pour les boutons d'action (modifier + supprimer)
     const userActionsSection = document.createElement('div');
     userActionsSection.className = 'user-actions-section';
-    userActionsSection.style.cssText = `
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      flex-shrink: 0;
-    `;
-    
     userActionsSection.appendChild(renameBtn);
     
     // Bouton de suppression (croix)
     const deleteBtn = document.createElement('button');
     deleteBtn.innerHTML = '&times;';
-    deleteBtn.style.cssText = `
-      width: 34px;
-      height: 34px;
-      border-radius: 50%;
-      border: none;
-      background: #f1f5f9;
-      color: #64748b;
-      font-size: 20px;
-      line-height: 1;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.2s;
-      margin-left: 4px;
-      flex-shrink: 0;
-    `;
+    deleteBtn.className = 'user-action-btn delete';
     deleteBtn.title = t('login.deleteThisDevice');
-    
-    deleteBtn.addEventListener('mouseenter', () => {
-      deleteBtn.style.background = '#ef4444';
-      deleteBtn.style.color = 'white';
-    });
-    
-    deleteBtn.addEventListener('mouseleave', () => {
-      deleteBtn.style.background = '#f1f5f9';
-      deleteBtn.style.color = '#64748b';
-    });
     
     deleteBtn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -890,50 +988,42 @@ function displayAllUsers() {
     
     // Event listener pour le switch d'utilisateur
     userBtn.addEventListener('click', async () => {
+      // Une seule connexion à la fois : ignorer si une connexion est déjà en cours
+      if (usersList.classList.contains('is-connecting')) return;
+
       // Cacher l'erreur précédente
       if (usersError) {
         usersError.style.display = 'none';
       }
-      
-      // Annuler toute connexion en cours avant de commencer une nouvelle
-      cancelCurrentConnection();
-      
+
+      // Verrouiller la liste (désactive visuellement les autres cartes)
+      usersList.classList.add('is-connecting');
       userBtn.disabled = true;
-      userBtn.style.justifyContent = 'center';
-      userBtn.style.borderColor = '#667eea';
-      userBtn.style.background = 'linear-gradient(135deg, #f0f4ff, #e8eeff)';
+      userBtn.classList.add('user-connecting');
       userBtn.innerHTML = `
         <span class="btn-spinner" style="width: 20px; height: 20px; border-width: 2.5px;"></span>
         <span style="font-weight: 600; color: #4f46e5; font-size: 15px;">${t('login.connectingTo', { name: user.name || user.uid || t('ryvieName.default') })}</span>
       `;
-      
-      try {
-        await switchUser(userKey);
-      } catch (error) {
-        console.error('[Ryvie][Login] Erreur switch utilisateur:', error);
+
+      const ok = await switchUser(userKey);
+
+      // En cas de succès on a navigué vers la vue connectée : rien à réinitialiser.
+      // En cas d'échec/annulation, on remet la carte et on déverrouille la liste.
+      if (!ok) {
         userBtn.disabled = false;
-        userBtn.style.justifyContent = '';
-        userBtn.style.borderColor = '#e2e8f0';
-        userBtn.style.background = 'white';
+        userBtn.classList.remove('user-connecting');
         userBtn.innerHTML = '';
         userBtn.appendChild(userLeftSection);
         userBtn.appendChild(userActionsSection);
+        usersList.classList.remove('is-connecting');
       }
     });
-    
-    // Hover effect
-    userBtn.addEventListener('mouseenter', () => {
-      userBtn.style.borderColor = '#667eea';
-      userBtn.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.2)';
-    });
-    
-    userBtn.addEventListener('mouseleave', () => {
-      userBtn.style.borderColor = '#e2e8f0';
-      userBtn.style.boxShadow = 'none';
-    });
-    
+
     usersList.appendChild(userBtn);
   });
+
+  // Centrer le favori (copie centrale) au milieu du carrousel infini
+  requestAnimationFrame(() => centerFavorite(usersArray.length));
 }
 
 
@@ -958,14 +1048,14 @@ async function switchUser(userKey) {
     // Vérifier si l'opération a été annulée
     if (signal.aborted) {
       console.log('[Ryvie][Login] Connexion annulée avant le début');
-      return;
+      return false;
     }
     
     const switchResult = await window.electronAPI.switchUser(userKey);
     
     if (signal.aborted) {
       console.log('[Ryvie][Login] Connexion annulée après la réponse');
-      return;
+      return false;
     }
     
     if (!switchResult.success) {
@@ -974,26 +1064,28 @@ async function switchUser(userKey) {
         usersError.textContent = t('errors.switchDevice', { details: switchResult.error });
         usersError.style.display = 'block';
       }
-      return;
+      return false;
     }
-    
+
     // Sauvegarder la configuration
     await window.electronAPI.saveConfig(switchResult.config);
     console.log('[Ryvie][Login] Configuration utilisateur chargée');
-    
+
     // Rediriger vers la page principale
     window.Ryvie.showApp();
+    return true;
 
   } catch (error) {
     if (error.name === 'AbortError') {
       console.log('[Ryvie][Login] Connexion annulée');
-      return;
+      return false;
     }
     console.error('[Ryvie][Login] Erreur switch utilisateur:', error);
     if (usersError) {
       usersError.textContent = t('errors.switchDevice', { details: error.message });
       usersError.style.display = 'block';
     }
+    return false;
   } finally {
     isConnecting = false;
     currentConnectionAbortController = null;
@@ -1057,19 +1149,40 @@ function hideConfirmDeleteModal() {
   userToDelete = null;
 }
 
+// Met à jour l'aperçu d'avatar de la modale (image, ou dégradé + initiales)
+function updateRenamePreview(avatarValue) {
+  if (!renameAvatarPreview) return;
+  const name = renameInput ? renameInput.value : '';
+  if (avatarValue) {
+    renameAvatarPreview.textContent = '';
+    renameAvatarPreview.style.background = '';
+    renameAvatarPreview.style.backgroundImage = `url("${avatarValue}")`;
+    if (renameRemoveBtn) renameRemoveBtn.style.display = '';
+  } else {
+    renameAvatarPreview.style.backgroundImage = '';
+    renameAvatarPreview.style.background = AVATAR_DEFAULT_GRADIENT;
+    renameAvatarPreview.textContent = getInitials(name || '');
+    if (renameRemoveBtn) renameRemoveBtn.style.display = 'none';
+  }
+}
+
 function showRenameModal(userKey, currentName) {
   userToRenameKey = userKey;
   userToRename = allUsers.find(u => (u.userKey || u.email || u.uid) === userKey);
-  
+
   if (renameInput) {
     renameInput.value = currentName || '';
     renameInput.focus();
   }
-  
+
   if (renameError) {
     renameError.style.display = 'none';
   }
-  
+
+  // Avatar : on part de l'image actuelle (inchangée tant qu'on n'importe/retire rien)
+  renamePendingAvatar = undefined;
+  updateRenamePreview(userToRename ? userToRename.avatar : null);
+
   if (renameModal) {
     renameModal.classList.remove('hidden');
     renameModal.style.display = 'flex';
@@ -1087,6 +1200,7 @@ function hideRenameModal() {
   if (renameError) {
     renameError.style.display = 'none';
   }
+  renamePendingAvatar = undefined;
   userToRename = null;
   userToRenameKey = null;
 }
@@ -1097,39 +1211,46 @@ async function executeRename() {
   }
   
   const newName = renameInput.value.trim();
-  
+
   if (!newName) {
     renameError.textContent = t('errors.enterProfileName');
     renameError.style.display = 'block';
     return;
   }
-  
-  if (newName === (userToRename.name || userToRename.uid)) {
+
+  const nameChanged = newName !== (userToRename.name || userToRename.uid);
+  const avatarChanged = renamePendingAvatar !== undefined;
+
+  if (!nameChanged && !avatarChanged) {
     hideRenameModal();
     return;
   }
-  
+
   try {
-    // Renommer l'utilisateur via l'API dédiée (ne modifie que le champ name)
-    const renameResult = await window.electronAPI.renameUser(userToRenameKey, newName);
-    if (!renameResult.success) {
-      renameError.textContent = renameResult.error || 'Erreur lors du renommage';
-      renameError.style.display = 'block';
-      return;
+    if (nameChanged) {
+      const renameResult = await window.electronAPI.renameUser(userToRenameKey, newName);
+      if (!renameResult.success) {
+        renameError.textContent = renameResult.error || 'Erreur lors du renommage';
+        renameError.style.display = 'block';
+        return;
+      }
     }
-    console.log('[Ryvie][Login] Profil renommé avec succès');
-    
+    if (avatarChanged) {
+      await window.electronAPI.setUserAvatar(userToRenameKey, renamePendingAvatar);
+    }
+    console.log('[Ryvie][Login] Profil modifié avec succès');
+
     // Rafraîchir l'affichage des utilisateurs
     const usersResult = await window.electronAPI.getAllUsers();
     if (usersResult.success && usersResult.users) {
       allUsers = usersResult.users;
       displayAllUsers();
     }
-    
+
     hideRenameModal();
-    
+
   } catch (error) {
-    console.error('[Ryvie][Login] Erreur lors du renommage:', error);
+    console.error('[Ryvie][Login] Erreur modification profil:', error);
     renameError.textContent = t('errors.renameError', { details: error.message });
     renameError.style.display = 'block';
   }

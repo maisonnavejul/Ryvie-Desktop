@@ -1644,7 +1644,9 @@ ipcMain.handle('get-all-users', async () => {
       role: user.role,
       ryvieId: user.ryvieId || '',
       lastLogin: user.lastLogin,
-      mode: user.mode || 'local'
+      mode: user.mode || 'local',
+      favorite: user.favorite || false,
+      avatar: user.avatar || null
     }));
     
     return { success: true, users };
@@ -1687,6 +1689,48 @@ ipcMain.handle('save-user-config', async (event, userConfig, setCurrent = true) 
     return { success: true };
   } catch (error) {
     console.error('[Ryvie][Main] Erreur save-user-config:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// IPC: Épingler un Ryvie favori (un seul favori à la fois ; re-cliquer le retire)
+ipcMain.handle('set-favorite-user', async (event, userKey) => {
+  try {
+    const usersData = loadUsersData();
+    if (!usersData.users[userKey]) {
+      return { success: false, error: 'Utilisateur non trouvé' };
+    }
+    const willFavorite = !usersData.users[userKey].favorite;
+    // Un seul favori : on efface tous les autres
+    for (const key of Object.keys(usersData.users)) {
+      usersData.users[key].favorite = false;
+    }
+    usersData.users[userKey].favorite = willFavorite;
+    saveUsersData(usersData);
+    console.log('[Ryvie][Main] Favori:', userKey, '->', willFavorite);
+    return { success: true, favorite: willFavorite };
+  } catch (error) {
+    console.error('[Ryvie][Main] Erreur set-favorite-user:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// IPC: Définir/retirer l'image d'avatar d'un profil (data URL, ou null pour réinitialiser)
+ipcMain.handle('set-user-avatar', async (event, userKey, avatarDataUrl) => {
+  try {
+    const usersData = loadUsersData();
+    if (!usersData.users[userKey]) {
+      return { success: false, error: 'Utilisateur non trouvé' };
+    }
+    if (avatarDataUrl) {
+      usersData.users[userKey].avatar = avatarDataUrl;
+    } else {
+      delete usersData.users[userKey].avatar;
+    }
+    saveUsersData(usersData);
+    return { success: true };
+  } catch (error) {
+    console.error('[Ryvie][Main] Erreur set-user-avatar:', error);
     return { success: false, error: error.message };
   }
 });

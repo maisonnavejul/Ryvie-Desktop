@@ -40,5 +40,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   switchUser: (userKey) => ipcRenderer.invoke('switch-user', userKey),
   getCurrentUser: () => ipcRenderer.invoke('get-current-user'),
   removeUser: (userKey) => ipcRenderer.invoke('remove-user', userKey),
-  renameUser: (userKey, newName) => ipcRenderer.invoke('rename-user', userKey, newName)
+  renameUser: (userKey, newName) => ipcRenderer.invoke('rename-user', userKey, newName),
+  setFavoriteUser: (userKey) => ipcRenderer.invoke('set-favorite-user', userKey),
+  setUserAvatar: (userKey, avatarDataUrl) => ipcRenderer.invoke('set-user-avatar', userKey, avatarDataUrl)
 });

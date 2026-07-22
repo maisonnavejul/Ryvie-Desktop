@@ -37,14 +37,16 @@
   <!-- VUE LOGIN (sélection de profil / connexion)                    -->
   <!-- ============================================================= -->
   <div id="login-view" class="view">
+    <!-- Sélecteur de langue : fixé en haut à droite de la fenêtre (sur le fond bleu),
+         hors de la carte pour ne pas chevaucher le bouton retour. -->
+    <div class="language-switcher">
+      <select id="language-select" aria-label="Language">
+        <option value="fr">🇫🇷 FR</option>
+        <option value="en">🇬🇧 EN</option>
+      </select>
+    </div>
     <div class="container">
       <img src="../../ryvielogo0.png" alt="Ryvie Logo" class="logo logo-corner" />
-      <div class="language-switcher">
-        <select id="language-select" aria-label="Language">
-          <option value="fr">🇫🇷 FR</option>
-          <option value="en">🇬🇧 EN</option>
-        </select>
-      </div>
       <div class="header">
         <h1 id="login-header-title" data-i18n="login.chooseRyvie"></h1>
       </div>
@@ -58,7 +60,12 @@
         <div class="users-selection-container">
           <p id="users-error" style="color: #ef4444; font-size: 12px; margin: 0 0 16px; text-align: center; display: none;"></p>
 
-          <div id="users-list" class="users-list" style="display: grid; gap: 14px; overflow-y: auto; padding-right: 8px;"></div>
+          <div class="users-carousel">
+            <button id="carousel-prev" class="carousel-arrow prev" type="button" aria-label="Précédent">&lsaquo;</button>
+            <div id="users-list" class="users-list"></div>
+            <button id="carousel-next" class="carousel-arrow next" type="button" aria-label="Suivant">&rsaquo;</button>
+          </div>
+          <input type="range" id="carousel-slider" class="carousel-slider" min="0" max="1000" value="0" step="1" aria-label="Faire défiler les Ryvie" />
         </div>
 
         <button id="add-user-btn" class="btn btn-secondary add-user-btn">
@@ -212,7 +219,14 @@
           </svg>
         </div>
         <h2 style="font-size: 18px; margin: 0 0 8px; text-align: center; color: #0f172a;" data-i18n="modal.renameTitle"></h2>
-        <p style="margin: 0 0 20px; color: #64748b; font-size: 14px; text-align: center;" data-i18n="modal.renameSubtitle"></p>
+        <p style="margin: 0 0 18px; color: #64748b; font-size: 14px; text-align: center;" data-i18n="modal.renameSubtitle"></p>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 18px;">
+          <div id="rename-avatar-preview" class="rename-avatar-preview"></div>
+          <div style="display: flex; gap: 8px;">
+            <button id="rename-import-btn" type="button" class="btn btn-secondary" style="font-size: 12px; padding: 6px 12px;"><span data-i18n="modal.changeImage"></span></button>
+            <button id="rename-remove-btn" type="button" class="btn btn-secondary" style="font-size: 12px; padding: 6px 12px; display: none;"><span data-i18n="modal.removeImage"></span></button>
+          </div>
+        </div>
         <div style="margin-bottom: 20px;">
           <label for="rename-input" style="display: block; text-align: left; margin-bottom: 6px; color: #475569; font-size: 12px; font-weight: 600;" data-i18n="login.profileName"></label>
           <input type="text" id="rename-input" data-i18n-placeholder="modal.renamePlaceholder" autocomplete="off" style="width: 100%; padding: 10px 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; font-family: 'Inter', sans-serif; transition: border-color 0.2s; box-sizing: border-box;" />
